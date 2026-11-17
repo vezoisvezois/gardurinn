@@ -109,6 +109,19 @@ Large originals are fine, because the build resizes them. Keep each file under a
 
 ## Travel — `data/travel.json` and `data/airports.json`
 
+Countries are sorted into three groups: **home**, **lived** and **visited**.
+
+```jsonc
+"home": "Iceland", "homeCode": "IS", "born": "2000-05-04",
+"lived": [ { "country": "Denmark", "code": "DK", "from": "2018-01-11", "to": "2018-06-27" } ],
+"visited": [ { "country": "France", "code": "FR", "region": "Europe" } ]
+```
+
+- Time at home is worked out automatically: every date from `born` onwards that isn't inside a `lived` period.
+- A country you've lived in is shown under Lived, even if it's also in `visited`.
+- Visited countries are grouped by `region`. England, Scotland and Wales use the codes `GB-ENG`, `GB-SCT` and `GB-WLS` for their flags.
+- Places too small for the world map (Singapore, Hong Kong, Liechtenstein…) appear as dots.
+
 Each **stay** is one visit to one country. Nights are counted from `arrive` to `depart`.
 
 ```jsonc

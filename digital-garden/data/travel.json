@@ -1,27 +1,59 @@
 {
   "home": "Iceland",
-  "intro": "Where I’ve been, how I got there, and how long I stayed. *This is sample data — replace it with your own trips in `data/travel.json`.*",
-  "stays": [
-    { "trip": "Sydney long weekend", "country": "Australia", "code": "AU", "place": "Sydney", "arrive": "2019-10-24", "depart": "2019-10-28" },
+  "homeCode": "IS",
+  "born": "2000-05-04",
+  "intro": "The places I’ve called home, the places I’ve lived, and everywhere I’ve visited along the way.",
 
-    { "trip": "Europe 2022", "country": "Singapore", "code": "SG", "arrive": "2022-06-01", "depart": "2022-06-03" },
-    { "trip": "Europe 2022", "country": "United Kingdom", "code": "GB", "place": "London", "arrive": "2022-06-03", "depart": "2022-06-12" },
-    { "trip": "Europe 2022", "country": "Denmark", "code": "DK", "place": "Copenhagen", "arrive": "2022-06-12", "depart": "2022-06-16" },
-    { "trip": "Europe 2022", "country": "Iceland", "code": "IS", "place": "Reykjavík", "arrive": "2022-06-16", "depart": "2022-07-04" },
-
-    { "trip": "Japan in spring", "country": "Japan", "code": "JP", "place": "Tokyo, Kyoto", "arrive": "2024-03-28", "depart": "2024-04-14" },
-
-    { "trip": "California", "country": "United States", "code": "US", "place": "Los Angeles", "arrive": "2025-09-02", "depart": "2025-09-11" },
-
-    { "trip": "Iceland again", "country": "Singapore", "code": "SG", "arrive": "2026-02-10", "depart": "2026-02-11" },
-    { "trip": "Iceland again", "country": "Iceland", "code": "IS", "place": "Reykjavík, Akureyri", "arrive": "2026-02-11", "depart": "2026-03-01" }
+  "lived": [
+    { "country": "Denmark", "code": "DK", "from": "2018-01-11", "to": "2018-06-27" },
+    { "country": "Denmark", "code": "DK", "from": "2022-08-28", "to": "2023-06-05" },
+    { "country": "New Zealand", "code": "NZ", "from": "2026-09-24", "to": "2026-11-29" }
   ],
-  "flights": [
-    "AKL-SYD", "SYD-AKL",
-    "AKL-SIN", "SIN-LHR", "LHR-CPH", "CPH-KEF", "KEF-LHR", "LHR-SIN", "SIN-AKL",
-    "AKL-NRT", "NRT-AKL",
-    "AKL-LAX", "LAX-AKL",
-    "AKL-SIN", "SIN-CPH", "CPH-KEF", "KEF-AEY", "AEY-KEF", "KEF-CPH", "CPH-SIN", "SIN-AKL"
+
+  "visited": [
+    { "country": "Canada", "code": "CA", "region": "Americas" },
+    { "country": "United States", "code": "US", "region": "Americas" },
+    { "country": "Argentina", "code": "AR", "region": "Americas" },
+    { "country": "Brazil", "code": "BR", "region": "Americas" },
+    { "country": "Chile", "code": "CL", "region": "Americas" },
+    { "country": "Uruguay", "code": "UY", "region": "Americas" },
+
+    { "country": "Albania", "code": "AL", "region": "Europe" },
+    { "country": "Austria", "code": "AT", "region": "Europe" },
+    { "country": "Belgium", "code": "BE", "region": "Europe" },
+    { "country": "Denmark", "code": "DK", "region": "Europe" },
+    { "country": "England", "code": "GB-ENG", "region": "Europe" },
+    { "country": "Estonia", "code": "EE", "region": "Europe" },
+    { "country": "Finland", "code": "FI", "region": "Europe" },
+    { "country": "France", "code": "FR", "region": "Europe" },
+    { "country": "Germany", "code": "DE", "region": "Europe" },
+    { "country": "Ireland", "code": "IE", "region": "Europe" },
+    { "country": "Italy", "code": "IT", "region": "Europe" },
+    { "country": "Latvia", "code": "LV", "region": "Europe" },
+    { "country": "Liechtenstein", "code": "LI", "region": "Europe" },
+    { "country": "Lithuania", "code": "LT", "region": "Europe" },
+    { "country": "Luxembourg", "code": "LU", "region": "Europe" },
+    { "country": "Montenegro", "code": "ME", "region": "Europe" },
+    { "country": "Netherlands", "code": "NL", "region": "Europe" },
+    { "country": "Norway", "code": "NO", "region": "Europe" },
+    { "country": "Scotland", "code": "GB-SCT", "region": "Europe" },
+    { "country": "Spain", "code": "ES", "region": "Europe" },
+    { "country": "Sweden", "code": "SE", "region": "Europe" },
+    { "country": "Switzerland", "code": "CH", "region": "Europe" },
+
+    { "country": "Kenya", "code": "KE", "region": "Africa" },
+    { "country": "Malawi", "code": "MW", "region": "Africa" },
+    { "country": "Mozambique", "code": "MZ", "region": "Africa" },
+    { "country": "Zambia", "code": "ZM", "region": "Africa" },
+
+    { "country": "China", "code": "CN", "region": "Asia" },
+    { "country": "Hong Kong", "code": "HK", "region": "Asia" },
+    { "country": "Macau", "code": "MO", "region": "Asia" },
+    { "country": "Singapore", "code": "SG", "region": "Asia" },
+    { "country": "Taiwan", "code": "TW", "region": "Asia" }
   ],
-  "mapNames": {}
+
+  "stays": [],
+  "flights": [],
+  "mapNames": { "England": "United Kingdom", "Scotland": "United Kingdom" }
 }
