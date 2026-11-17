@@ -1,0 +1,15 @@
+{
+  "title": "Your Name",
+  "author": "Your Name",
+  "url": "https://yourdomain.com",
+  "lang": "en",
+  "description": "A digital garden of notes, books, photographs and travels.",
+  "heroTitle": "Hello, I’m Your Name.<br>Welcome to my garden.",
+  "heroIntro": "This is a slowly growing collection of notes, essays and half-formed ideas, along with the books I’ve read, photos from my life and the places I’ve been.",
+  "gardenIntro": "Notes, essays and half-finished thoughts, growing at different speeds. Nothing here is ever really done.",
+  "booksIntro": "What I’m reading, what I’ve read, and the growing pile waiting for me.",
+  "photosIntro": "Moments from my life, roughly in order.",
+  "travelIntro": "Where I’ve been, how I got there, and how long I stayed.",
+  "home": "New Zealand",
+  "footer": "Grown with plain text and patience."
+}

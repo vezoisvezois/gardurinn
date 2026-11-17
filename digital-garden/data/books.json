@@ -1,0 +1,49 @@
+[
+  {
+    "title": "Four Thousand Weeks",
+    "author": "Oliver Burkeman",
+    "isbn": "9780374159122",
+    "status": "reading"
+  },
+  {
+    "title": "How to Take Smart Notes",
+    "author": "Sönke Ahrens",
+    "isbn": "9781542866507",
+    "status": "read",
+    "finished": "2026-08",
+    "rating": 4,
+    "thoughts": "The book that convinced me to start this garden. Sample entry — replace with your own.",
+    "note": "welcome-to-the-garden"
+  },
+  {
+    "title": "Braiding Sweetgrass",
+    "author": "Robin Wall Kimmerer",
+    "isbn": "9781571313560",
+    "status": "read",
+    "finished": "2026-03",
+    "rating": 5,
+    "thoughts": "Sample entry. A line or two about what stayed with you."
+  },
+  {
+    "title": "The Overstory",
+    "author": "Richard Powers",
+    "isbn": "9780393635522",
+    "status": "read",
+    "finished": "2025-11",
+    "rating": 4
+  },
+  {
+    "title": "The Dispossessed",
+    "author": "Ursula K. Le Guin",
+    "isbn": "9780061054884",
+    "status": "read",
+    "finished": "2025-06",
+    "rating": 5
+  },
+  {
+    "title": "Atlas of Remote Islands",
+    "author": "Judith Schalansky",
+    "isbn": "9780143118206",
+    "status": "to-read"
+  }
+]

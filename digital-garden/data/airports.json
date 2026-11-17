@@ -1,0 +1,11 @@
+{
+  "AKL": { "name": "Auckland Airport", "city": "Auckland", "lat": -37.0082, "lon": 174.7850 },
+  "SYD": { "name": "Sydney Kingsford Smith", "city": "Sydney", "lat": -33.9461, "lon": 151.1772 },
+  "SIN": { "name": "Singapore Changi", "city": "Singapore", "lat": 1.3644, "lon": 103.9915 },
+  "LHR": { "name": "London Heathrow", "city": "London", "lat": 51.4700, "lon": -0.4543 },
+  "CPH": { "name": "Copenhagen Kastrup", "city": "Copenhagen", "lat": 55.6180, "lon": 12.6560 },
+  "KEF": { "name": "Keflavík International", "city": "Reykjavík", "lat": 63.9850, "lon": -22.6056 },
+  "AEY": { "name": "Akureyri Airport", "city": "Akureyri", "lat": 65.6600, "lon": -18.0727 },
+  "NRT": { "name": "Narita International", "city": "Tokyo", "lat": 35.7720, "lon": 140.3929 },
+  "LAX": { "name": "Los Angeles International", "city": "Los Angeles", "lat": 33.9416, "lon": -118.4085 }
+}

@@ -1,0 +1,27 @@
+{
+  "home": "New Zealand",
+  "intro": "Where I’ve been, how I got there, and how long I stayed. *This is sample data — replace it with your own trips in `data/travel.json`.*",
+  "stays": [
+    { "trip": "Sydney long weekend", "country": "Australia", "code": "AU", "place": "Sydney", "arrive": "2019-10-24", "depart": "2019-10-28" },
+
+    { "trip": "Europe 2022", "country": "Singapore", "code": "SG", "arrive": "2022-06-01", "depart": "2022-06-03" },
+    { "trip": "Europe 2022", "country": "United Kingdom", "code": "GB", "place": "London", "arrive": "2022-06-03", "depart": "2022-06-12" },
+    { "trip": "Europe 2022", "country": "Denmark", "code": "DK", "place": "Copenhagen", "arrive": "2022-06-12", "depart": "2022-06-16" },
+    { "trip": "Europe 2022", "country": "Iceland", "code": "IS", "place": "Reykjavík", "arrive": "2022-06-16", "depart": "2022-07-04" },
+
+    { "trip": "Japan in spring", "country": "Japan", "code": "JP", "place": "Tokyo, Kyoto", "arrive": "2024-03-28", "depart": "2024-04-14" },
+
+    { "trip": "California", "country": "United States", "code": "US", "place": "Los Angeles", "arrive": "2025-09-02", "depart": "2025-09-11" },
+
+    { "trip": "Iceland again", "country": "Singapore", "code": "SG", "arrive": "2026-02-10", "depart": "2026-02-11" },
+    { "trip": "Iceland again", "country": "Iceland", "code": "IS", "place": "Reykjavík, Akureyri", "arrive": "2026-02-11", "depart": "2026-03-01" }
+  ],
+  "flights": [
+    "AKL-SYD", "SYD-AKL",
+    "AKL-SIN", "SIN-LHR", "LHR-CPH", "CPH-KEF", "KEF-LHR", "LHR-SIN", "SIN-AKL",
+    "AKL-NRT", "NRT-AKL",
+    "AKL-LAX", "LAX-AKL",
+    "AKL-SIN", "SIN-CPH", "CPH-KEF", "KEF-AEY", "AEY-KEF", "KEF-CPH", "CPH-SIN", "SIN-AKL"
+  ],
+  "mapNames": {}
+}

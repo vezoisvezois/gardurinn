@@ -1,0 +1,7 @@
+[
+  { "file": "sample-coast.jpg", "caption": "Sample photo — replace me", "place": "Somewhere on the coast", "date": "2026-02-20", "alt": "Placeholder gradient image" },
+  { "file": "sample-dusk.jpg", "caption": "Another placeholder", "place": "Reykjavík", "date": "2026-02-14", "alt": "Placeholder gradient image" },
+  { "file": "sample-forest.jpg", "caption": "Bush walk", "place": "Waitākere Ranges", "date": "2025-12-03", "alt": "Placeholder gradient image" },
+  { "file": "sample-morning.jpg", "caption": "Early morning", "place": "Kyoto", "date": "2024-04-02", "alt": "Placeholder gradient image" },
+  { "file": "sample-tall.jpg", "caption": "A portrait-shaped placeholder", "place": "Tokyo", "date": "2024-03-30", "alt": "Placeholder gradient image" }
+]
