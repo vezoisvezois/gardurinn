@@ -58,6 +58,11 @@ h3 { font-size: 1.2rem; margin: 0 0 .3em; }
 }
 .site-header nav a:hover { background: var(--paper-2); color: var(--ink); }
 .site-header nav a[aria-current] { background: var(--ink); color: var(--paper); }
+.site-header nav { margin-left: auto; }
+.lang-switch { font: 500 .8rem var(--sans); color: var(--ink-2); text-decoration: none; border: 1px solid var(--line); border-radius: 999px; padding: .3rem .7rem; margin-left: .5rem; white-space: nowrap; }
+.lang-switch:hover { border-color: var(--accent); color: var(--accent); }
+.only-in { display: inline-block; font: 500 .78rem var(--sans); color: var(--ink-2); background: var(--highlight); border-radius: 6px; padding: .2rem .55rem; }
+.lang-tag { font: 600 .65rem var(--sans); letter-spacing: .06em; color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: .05rem .3rem; margin-left: .3rem; }
 main { max-width: 72rem; margin: 0 auto; padding: 0 1.5rem 4rem; }
 .site-footer { border-top: 1px solid var(--line); max-width: 72rem; margin: 0 auto; padding: 2rem 1.5rem 3rem; font-size: .9rem; }
 .site-footer p { margin: .2rem 0; }
