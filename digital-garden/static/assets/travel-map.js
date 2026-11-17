@@ -1,4 +1,4 @@
-// World map: visited countries, airports and great-circle flight routes.
+// World map: home, countries lived in, countries visited, airports and great-circle flight routes.
 // No libraries — uses the Equal Earth projection and decodes the world-atlas TopoJSON directly.
 (async () => {
   const el = document.getElementById('travel-map');
@@ -83,10 +83,26 @@
   };
 
   // ---- Draw ----
-  const visited = new Map(data.visited.map((c) => [mapName(c.name), c]));
-  const home = mapName(data.home || '');
   const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  // One entry per map shape; home beats lived beats visited. Several names can share a shape (England + Scotland).
+  const places = new Map();
+  const add = (kind, name, label) => {
+    const key = mapName(name), cur = places.get(key);
+    if (!cur) places.set(key, { kind, labels: [label] });
+    else if (cur.kind === kind) cur.labels.push(label);
+  };
+  if (data.home) add('home', data.home.name, `${data.home.flag} ${data.home.name} · home`);
+  for (const c of data.lived || []) add('lived', c.name, `${c.flag} ${c.name} · lived ${c.years}`);
+  for (const c of data.visited || []) add('visited', c.name, `${c.flag} ${c.name}${c.nights ? ` · ${c.nights} nights` : ''}`);
   const geoms = (topo.objects.countries || Object.values(topo.objects)[0]).geometries;
+
+  // Places too small for this map get a dot instead of a shape.
+  const SMALL = {
+    Liechtenstein: [9.55, 47.16], Luxembourg: [6.13, 49.61], Monaco: [7.42, 43.74], Andorra: [1.52, 42.51], 'San Marino': [12.46, 43.94],
+    'Vatican City': [12.45, 41.9], Malta: [14.45, 35.9], 'Hong Kong': [114.17, 22.32], Macao: [113.55, 22.17], Macau: [113.55, 22.17],
+    Singapore: [103.82, 1.35], Bahrain: [50.56, 26.07], Maldives: [73.5, 4.2], Mauritius: [57.55, -20.3], Seychelles: [55.45, -4.62],
+    Barbados: [-59.55, 13.17], 'Cape Verde': [-23.6, 15.1], Samoa: [-172.1, -13.76], Tonga: [-175.2, -21.18], 'Faroe Islands': [-6.9, 62.0],
+  };
 
   const grat = [];
   for (let lon = -180; lon <= 180; lon += 30) { const pts = []; for (let lat = bottom; lat <= top; lat += 2) pts.push([lon, lat]); grat.push(linePath(pts)); }
@@ -98,14 +114,20 @@
   const found = new Set();
   const countries = geoms.filter((g) => g.properties?.name !== 'Antarctica').map((g) => {
     const name = g.properties?.name || '';
-    const v = visited.get(name);
-    if (v) found.add(name);
-    const cls = name === home ? 'country home' : v ? 'country visited' : 'country';
-    const label = v ? `${v.flag} ${name} · ${v.nights} nights` : name === home ? `${name} · home` : name;
+    const pl = places.get(name);
+    if (pl) found.add(name);
     const d = polygons(g).map((poly) => poly.map((r) => linePath(r, true)).join('')).join('');
-    return `<path class="${cls}" d="${d}" data-tip="${esc(label)}"/>`;
+    return `<path class="country${pl ? ` ${pl.kind}` : ''}" d="${d}" data-tip="${esc(pl ? pl.labels.join(' / ') : name)}"/>`;
   });
-  const missing = [...visited.keys()].filter((n) => !found.has(n));
+  const smallDots = [];
+  const missing = [];
+  for (const [name, pl] of places) {
+    if (found.has(name)) continue;
+    const ll = SMALL[name];
+    if (!ll) { missing.push(name); continue; }
+    const [x, y] = proj(ll[0], ll[1]);
+    smallDots.push(`<circle class="small-place ${pl.kind}" cx="${f(x)}" cy="${f(y)}" r="3.2" data-tip="${esc(pl.labels.join(' / '))}"/>`);
+  }
   if (missing.length) console.warn('Travel map: no shape found for', missing, '— add "mapNames" in data/travel.json to match the map’s names.');
 
   const ap = new Map(data.airports.map((a) => [a.code, a]));
@@ -123,6 +145,7 @@
     <path class="sphere" d="${outline.map(([lo, la], i) => { const [x, y] = proj(lo, la); return `${i ? 'L' : 'M'}${f(x)},${f(y)}`; }).join('')}Z"/>
     <path class="graticule" d="${grat.join('')}"/>
     <g>${countries.join('')}</g>
+    <g>${smallDots.join('')}</g>
     <g>${routes.join('')}</g>
     <g>${dots.join('')}</g>
   </svg>`;

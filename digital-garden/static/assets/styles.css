@@ -14,6 +14,7 @@
   --land: #e6dece;
   --visited: #5f9c86;
   --home: #c7853a;
+  --lived: #2f5f73;        /* slate blue */
   --serif: 'Fraunces', Georgia, 'Times New Roman', serif;
   --sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --measure: 38rem;
@@ -230,6 +231,12 @@ time.ago { white-space: nowrap; }
 .country { fill: var(--land); stroke: #fbf8f1; stroke-width: .5; transition: fill .15s; }
 .country.visited { fill: var(--visited); }
 .country.home { fill: var(--home); }
+.country.lived { fill: var(--lived); }
+.country.lived:hover, .country.home:hover { filter: brightness(1.12); }
+.small-place { fill: var(--visited); stroke: #fff; stroke-width: 1; }
+.small-place.lived { fill: var(--lived); }
+.small-place.home { fill: var(--home); }
+.small-place:hover { fill: var(--accent); }
 .country:hover { fill: #b9ad94; }
 .country.visited:hover { fill: var(--accent); }
 .graticule { fill: none; stroke: #dfe3d8; stroke-width: .5; }
@@ -241,6 +248,7 @@ time.ago { white-space: nowrap; }
 .swatch { display: inline-block; width: .9rem; height: .9rem; border-radius: 3px; vertical-align: -.12rem; margin-right: .35rem; }
 .swatch.visited { background: var(--visited); }
 .swatch.home { background: var(--home); }
+.swatch.lived { background: var(--lived); }
 .swatch.airport { background: #fff; border: 1.5px solid var(--ink); border-radius: 50%; }
 .swatch.route { height: 2px; vertical-align: .2rem; background: var(--accent-2); }
 .map-tip { position: absolute; pointer-events: none; background: var(--ink); color: var(--paper); font-size: .8rem; padding: .35rem .6rem; border-radius: 6px; white-space: nowrap; transform: translate(-50%, calc(-100% - 10px)); z-index: 5; }
@@ -265,6 +273,17 @@ time.ago { white-space: nowrap; }
 .airport-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(19rem, 1fr)); gap: 0 1.5rem; }
 .airport-list li { grid-template-columns: 3.2rem 1fr auto; }
 .iata { font: 600 .8rem var(--sans); letter-spacing: .08em; background: var(--ink); color: var(--paper); border-radius: 4px; padding: .2rem .35rem; text-align: center; }
+.region { font: 600 .78rem var(--sans); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 1.6rem 0 .2rem; }
+.region .count { font-size: inherit; }
+.place-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(19rem, 1fr)); gap: 1rem; }
+.place-card { background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--visited); border-radius: var(--radius); padding: .9rem 1.1rem; }
+.place-card.home { border-left-color: var(--home); max-width: 40rem; }
+.place-card.lived { border-left-color: var(--lived); }
+.place-head { display: flex; gap: .75rem; align-items: center; }
+.place-head .flag { font-size: 1.8rem; line-height: 1; }
+.place-head small { display: block; font-size: .8rem; }
+.periods { list-style: none; padding: 0; margin: .7rem 0 0; font-size: .9rem; }
+.periods li { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; padding: .35rem 0; border-top: 1px solid var(--line); }
 .trip-list li { padding: .9rem 0; border-bottom: 1px solid var(--line); }
 .trip-head { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
 .trip-list p { margin: .25rem 0 0; font-size: .92rem; color: var(--ink-2); }

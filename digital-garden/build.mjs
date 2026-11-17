@@ -293,7 +293,7 @@ async function buildHome(notes, books, photos, travelSummary, previews) {
   <a class="tile" href="/travel/">
     <span class="eyebrow">Atlas</span>
     <h2>Travel</h2>
-    <p>${travelSummary.countries} countries · ${travelSummary.nights} nights abroad · ${travelSummary.airports} airports</p>
+    <p>${[`${travelSummary.countries} countries`, travelSummary.lived && `lived in ${travelSummary.lived}`, travelSummary.nights && `${travelSummary.nights} nights abroad`, travelSummary.airports && `${travelSummary.airports} airports`].filter(Boolean).join(' · ')}</p>
   </a>
 </section>`;
   await write('index.html', layout({ title: '', active: '/', body, bodyClass: 'home' }));
@@ -427,7 +427,22 @@ function haversineKm(a, b) {
   const h = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(dLon / 2) ** 2;
   return 2 * R * Math.asin(Math.sqrt(h));
 }
-const flag = (code) => (code && /^[A-Za-z]{2}$/.test(code) ? [...code.toUpperCase()].map((c) => String.fromCodePoint(127397 + c.charCodeAt(0))).join('') : '🏳️');
+// Two-letter codes give a country flag; "GB-ENG", "GB-SCT" and "GB-WLS" give the subdivision flags.
+const flag = (code) => {
+  if (code && /^[A-Za-z]{2}$/.test(code)) return [...code.toUpperCase()].map((c) => String.fromCodePoint(127397 + c.charCodeAt(0))).join('');
+  if (code && /^[A-Za-z]{2}-[A-Za-z]{3}$/.test(code)) return `🏴${[...code.replace('-', '').toLowerCase()].map((c) => String.fromCodePoint(0xe0000 + c.charCodeAt(0))).join('')}\u{e007f}`;
+  return '🏳️';
+};
+const ymd = (d) => d.toISOString().slice(0, 10);
+const daysBetween = (a, b) => Math.max(0, Math.round((asDate(b) - asDate(a)) / DAY));
+// "5 months", "1 year, 2 months", "3 weeks"
+function spanText(days) {
+  const y = Math.floor(days / 365.25), m = Math.floor((days - y * 365.25) / 30.44);
+  if (y) return `${y} year${y > 1 ? 's' : ''}${m ? `, ${m} month${m > 1 ? 's' : ''}` : ''}`;
+  if (m) return `${m} month${m > 1 ? 's' : ''}`;
+  const w = Math.round(days / 7);
+  return w ? `${w} week${w > 1 ? 's' : ''}` : `${days} day${days === 1 ? '' : 's'}`;
+}
 
 function barChartYears(rows) {
   if (!rows.length) return '';
@@ -505,11 +520,53 @@ async function loadTravel() {
   }
   const airportList = [...usedCodes].filter((c) => airports[c]).map((c) => ({ code: c, ...airports[c], uses: flights.filter((f) => [f.from, f.to].map((x) => x.toUpperCase()).includes(c)).length }));
 
-  return { travel, home, stays, countries, yearRows, flights, airportList, routes, km: Math.round(km) };
+  // ---- Home, lived, visited ----
+  const today = ymd(new Date());
+  const lived = (travel.lived || []).filter((l) => l.country && l.from && l.to).sort((a, b) => a.from.localeCompare(b.from));
+  // Home periods are the gaps between the places lived, from birth onwards.
+  const homePeriods = [];
+  if (home && travel.born) {
+    let cursor = travel.born;
+    for (const l of lived) {
+      if (l.from > cursor) homePeriods.push({ from: cursor, to: l.from });
+      if (l.to > cursor) cursor = l.to;
+    }
+    homePeriods.push({ from: cursor, to: null });
+  }
+  const homeDays = homePeriods.reduce((s, h) => s + (h.from < today ? daysBetween(h.from, h.to && h.to < today ? h.to : today) : 0), 0);
+
+  const livedMap = new Map();
+  for (const l of lived) {
+    const c = livedMap.get(l.country) || { name: l.country, code: l.code, periods: [], days: 0 };
+    if (!c.code && l.code) c.code = l.code;
+    c.periods.push(l);
+    c.days += daysBetween(l.from, l.to);
+    livedMap.set(l.country, c);
+  }
+
+  // Visited: the "visited" list plus any country with a stay. Countries lived in or home are shown in their own group.
+  const visitedMap = new Map();
+  for (const v of travel.visited || []) {
+    const e = typeof v === 'string' ? { country: v } : v;
+    if (!e.country || visitedMap.has(e.country)) continue;
+    visitedMap.set(e.country, { name: e.country, code: e.code, region: e.region || 'Elsewhere' });
+  }
+  for (const c of countries.values()) if (!visitedMap.has(c.name)) visitedMap.set(c.name, { name: c.name, code: c.code, region: 'Elsewhere' });
+  for (const v of visitedMap.values()) {
+    const c = countries.get(v.name);
+    if (c) Object.assign(v, { nights: c.nights, visits: c.visits, first: c.first, places: c.places });
+    if (!v.code && c?.code) v.code = c.code;
+  }
+  const visitedOnly = [...visitedMap.values()].filter((v) => v.name !== home && !livedMap.has(v.name));
+  const allPlaces = new Set([...(home ? [home] : []), ...livedMap.keys(), ...visitedMap.keys()]);
+
+  return {
+    travel, home, stays, countries, yearRows, flights, airportList, routes, km: Math.round(km),
+    today, homePeriods, homeDays, lived: livedMap, visited: visitedOnly, allPlaces,
+  };
 }
 
 async function buildTravel(t, render, previews) {
-  const countryList = [...t.countries.values()].sort((a, b) => String(a.first).localeCompare(String(b.first)));
   const totalNights = t.stays.reduce((s, x) => s + x.nights, 0);
   const longest = [...t.stays].sort((a, b) => b.nights - a.nights)[0];
   const topCountries = [...t.countries.values()].sort((a, b) => b.nights - a.nights).slice(0, 12).map((c) => ({ label: `${flag(c.code)} ${c.name}`, value: c.nights }));
@@ -522,32 +579,71 @@ async function buildTravel(t, render, previews) {
   }
   const tripList = [...trips].map(([name, stays]) => ({ name, stays, start: stays[0].arrive, end: stays.at(-1).depart, nights: stays.reduce((a, s) => a + s.nights, 0) })).sort((a, b) => String(b.start).localeCompare(String(a.start)));
 
+  const homeCode = t.travel.homeCode || '';
+  const livedList = [...t.lived.values()].sort((a, b) => a.periods[0].from.localeCompare(b.periods[0].from));
+  const yearSpan = (periods) => [...new Set(periods.map((p) => `${p.from.slice(0, 4)}${p.to && p.to.slice(0, 4) !== p.from.slice(0, 4) ? `–${p.to.slice(2, 4)}` : ''}`))].join(', ');
+  const range = (p) => `${fmtDate(p.from)} – ${p.to ? fmtDate(p.to) : 'present'}`;
+
+  // Visited, grouped by region in the order they first appear
+  const regions = new Map();
+  for (const v of t.visited) { if (!regions.has(v.region)) regions.set(v.region, []); regions.get(v.region).push(v); }
+
   const mapData = {
-    home: t.home,
-    visited: countryList.map((c) => ({ name: c.name, nights: c.nights, flag: flag(c.code) })),
+    home: t.home ? { name: t.home, flag: flag(homeCode) } : null,
+    lived: livedList.map((c) => ({ name: c.name, flag: flag(c.code), years: yearSpan(c.periods) })),
+    visited: t.visited.map((c) => ({ name: c.name, nights: c.nights || 0, flag: flag(c.code) })),
     airports: t.airportList.map(({ code, name, city, lat, lon, uses }) => ({ code, name, city, lat, lon, uses })),
     routes: [...t.routes].map(([k, count]) => { const [a, b] = k.split('-'); return { a, b, count }; }),
     aliases: t.travel.mapNames || {},
   };
 
+  const homeYears = Math.floor(t.homeDays / 365.25);
+  const homeBlock = t.home ? `<section class="travel-section">
+  <h2>Home</h2>
+  <div class="place-card home">
+    <div class="place-head"><span class="flag">${flag(homeCode)}</span><div><strong>${esc(t.home)}</strong><small class="muted">${t.travel.born ? `Born ${esc(fmtDate(t.travel.born))} · ` : ''}${homeYears ? `${homeYears} years here` : ''}</small></div></div>
+    ${t.homePeriods.length ? `<ol class="periods">${t.homePeriods.map((p) => `<li><span>${range(p)}</span><span class="muted">${p.to ? spanText(daysBetween(p.from, p.to)) : p.from > t.today ? 'from then on' : `${spanText(daysBetween(p.from, t.today))} so far`}</span></li>`).join('')}</ol>` : ''}
+  </div>
+</section>` : '';
+
+  const livedBlock = livedList.length ? `<section class="travel-section">
+  <h2>Lived <span class="count">${livedList.length}</span></h2>
+  <div class="place-grid">${livedList.map((c) => `<div class="place-card lived">
+    <div class="place-head"><span class="flag">${flag(c.code)}</span><div><strong>${esc(c.name)}</strong><small class="muted">${spanText(c.days)} in all</small></div></div>
+    <ol class="periods">${c.periods.map((p) => `<li><span>${range(p)}</span><span class="muted">${spanText(daysBetween(p.from, p.to))}</span></li>`).join('')}</ol>
+  </div>`).join('')}</div>
+</section>` : '';
+
+  const visitedBlock = t.visited.length ? `<section class="travel-section">
+  <h2>Visited <span class="count">${t.visited.length}</span></h2>
+  ${[...regions].map(([region, list]) => `<h3 class="region">${esc(region)} <span class="count">${list.length}</span></h3>
+  <ul class="country-list">${list.map((c) => `<li><span class="flag">${flag(c.code)}</span><span class="c-name">${esc(c.name)}${c.places?.size ? `<small class="muted">${esc([...c.places].join(', '))}</small>` : ''}</span><span class="c-meta">${c.nights ? `${c.nights} nights · first ${timeTag(String(c.first).slice(0, 7))}` : ''}</span></li>`).join('')}</ul>`).join('')}
+</section>` : '';
+
   const intro = t.travel.intro ? render(t.travel.intro) : `<p class="dek">${esc(config.travelIntro || 'Where I’ve been, and how long I stayed.')}</p>`;
+  const stat = (n, label) => `<div><strong>${n}</strong><span>${label}</span></div>`;
   const body = `<section class="page-head">
   <h1>Travel</h1>
   ${intro}
 </section>
 <section class="stats">
-  <div><strong>${t.countries.size}</strong><span>countries</span></div>
-  <div><strong>${totalNights.toLocaleString('en')}</strong><span>nights abroad</span></div>
-  <div><strong>${t.airportList.length}</strong><span>airports</span></div>
-  <div><strong>${t.flights.length}</strong><span>flights</span></div>
-  <div><strong>${t.km.toLocaleString('en')}</strong><span>km flown${t.km > 40075 ? ` · ${(t.km / 40075).toFixed(1)}× round the Earth` : ''}</span></div>
+  ${stat(t.allPlaces.size, 'countries')}
+  ${stat(t.visited.length, 'visited')}
+  ${stat(livedList.length, 'lived in')}
+  ${totalNights ? stat(totalNights.toLocaleString('en'), 'nights abroad') : ''}
+  ${t.airportList.length ? stat(t.airportList.length, 'airports') : ''}
+  ${t.flights.length ? stat(t.flights.length, 'flights') : ''}
+  ${t.km ? stat(t.km.toLocaleString('en'), `km flown${t.km > 40075 ? ` · ${(t.km / 40075).toFixed(1)}× round the Earth` : ''}`) : ''}
 </section>
 <section class="map-wrap">
-  <div id="travel-map" class="travel-map" aria-label="World map of countries visited and airports"><p class="muted map-loading">Loading map…</p></div>
-  <div class="map-legend"><span><i class="swatch visited"></i>Visited</span>${t.home ? `<span><i class="swatch home"></i>Home</span>` : ''}<span><i class="swatch airport"></i>Airport</span><span><i class="swatch route"></i>Flight route</span></div>
+  <div id="travel-map" class="travel-map" aria-label="World map of home, countries lived in and countries visited"><p class="muted map-loading">Loading map…</p></div>
+  <div class="map-legend">${t.home ? `<span><i class="swatch home"></i>Home</span>` : ''}${livedList.length ? `<span><i class="swatch lived"></i>Lived</span>` : ''}<span><i class="swatch visited"></i>Visited</span>${t.airportList.length ? `<span><i class="swatch airport"></i>Airport</span><span><i class="swatch route"></i>Flight route</span>` : ''}</div>
   <div class="map-tip" hidden></div>
 </section>
-<section class="travel-section">
+${homeBlock}
+${livedBlock}
+${visitedBlock}
+${totalNights ? `<section class="travel-section">
   <h2>Nights abroad, by year</h2>
   ${barChartYears(t.yearRows)}
 </section>
@@ -555,23 +651,19 @@ async function buildTravel(t, render, previews) {
   <h2>Where I’ve spent the most nights</h2>
   ${hBarChart(topCountries)}
   ${longest ? `<p class="muted">Longest single stay: ${longest.nights} nights in ${esc(longest.place ? `${longest.place}, ` : '')}${esc(longest.country)}, from ${timeTag(longest.arrive)}.</p>` : ''}
-</section>
-<section class="travel-section">
-  <h2>Countries <span class="count">${t.countries.size}</span></h2>
-  <ul class="country-list">${countryList.map((c) => `<li><span class="flag">${flag(c.code)}</span><span class="c-name">${esc(c.name)}${c.places.size ? `<small class="muted">${esc([...c.places].join(', '))}</small>` : ''}</span><span class="c-meta">${c.nights} nights · first ${timeTag(String(c.first).slice(0, 7))}</span></li>`).join('')}</ul>
-</section>
-<section class="travel-section">
+</section>` : ''}
+${tripList.length ? `<section class="travel-section">
   <h2>Trips</h2>
   <ol class="trip-list">${tripList.map((tr) => `<li><div class="trip-head"><strong>${esc(tr.name)}</strong><span class="muted">${timeTag(tr.start)} · ${tr.nights} nights</span></div><p>${tr.stays.map((s) => `${flag(s.code)} ${esc(s.place ? `${s.place}, ${s.country}` : s.country)} <span class="muted">(${s.nights})</span>`).join(' → ')}</p></li>`).join('')}</ol>
-</section>
-<section class="travel-section">
+</section>` : ''}
+${t.airportList.length ? `<section class="travel-section">
   <h2>Airports <span class="count">${t.airportList.length}</span></h2>
   <ul class="airport-list">${[...t.airportList].sort((a, b) => b.uses - a.uses).map((a) => `<li><span class="iata">${esc(a.code)}</span><span>${esc(a.name)}<small class="muted">${esc(a.city || '')}</small></span><span class="muted">${a.uses}×</span></li>`).join('')}</ul>
-</section>
+</section>` : ''}
 <script type="application/json" id="travel-data">${JSON.stringify(mapData).replace(/</g, '\\u003c')}</script>`;
   await write('travel/index.html', layout({ title: 'Travel', active: '/travel/', body, scripts: '<script src="/assets/travel-map.js" defer></script>' }));
-  previews['/travel/'] = { kind: 'Section', title: 'Travel', text: `${t.countries.size} countries, ${totalNights} nights abroad, ${t.airportList.length} airports.` };
-  return { countries: t.countries.size, nights: totalNights, airports: t.airportList.length };
+  previews['/travel/'] = { kind: 'Section', title: 'Travel', text: `${t.allPlaces.size} countries: ${t.visited.length} visited, ${livedList.length} lived in${t.home ? `, home in ${t.home}` : ''}.` };
+  return { countries: t.allPlaces.size, visited: t.visited.length, lived: livedList.length, nights: totalNights, airports: t.airportList.length };
 }
 
 // ---------- main ----------
@@ -605,7 +697,7 @@ async function main() {
 
   await write('previews.json', JSON.stringify(previews));
   await write('404.html', layout({ title: 'Not found', body: '<section class="page-head"><h1>Nothing growing here</h1><p class="dek">This page hasn’t been planted. Try <a href="/garden/">the garden</a>.</p></section>' }));
-  console.log(`Built ${notes.length} notes, ${books.length} books, ${photos.length} photos, ${travel.countries.size} countries in ${Date.now() - started}ms${sharp ? '' : ' (sharp not installed: photos copied without resizing)'}`);
+  console.log(`Built ${notes.length} notes, ${books.length} books, ${photos.length} photos, ${travel.allPlaces.size} countries in ${Date.now() - started}ms${sharp ? '' : ' (sharp not installed: photos copied without resizing)'}`);
 }
 
 await main();
