@@ -66,6 +66,7 @@ const NAV = [
   ['Books', '/books/'],
   ['Photos', '/photos/'],
   ['Travel', '/travel/'],
+  ['CV', '/cv/'],
   ['About', '/about/'],
 ];
 
@@ -359,6 +360,48 @@ ${[...byYear].map(([y, list]) => `<section class="book-section"><h2>${esc(y)} <s
 ${toRead.length ? `<section class="book-section"><h2>Anti-library <span class="count">${toRead.length}</span></h2><p class="muted">Books I want to read, someday.</p>${shelf(toRead)}</section>` : ''}`;
   await write('books/index.html', layout({ title: 'Books', active: '/books/', body }));
   previews['/books/'] = { kind: 'Section', title: 'Books', text: `${read.length} books read, ${reading.length} in progress.` };
+}
+
+// ---------- CV ----------
+const CV_SECTIONS = [
+  ['education', 'Education'],
+  ['work', 'Work'],
+  ['volunteer', 'Volunteer work'],
+  ['projects', 'Projects'],
+];
+
+async function buildCV(render, previews) {
+  const cv = await readJSON(p('data', 'cv.json'), null);
+  if (!cv) return;
+  const inline = (s) => render(String(s)).replace(/^<p>|<\/p>\s*$/g, '');
+  const short = (d) => { if (!d) return ''; const [y, m] = String(d).split('-').map(Number); return m ? `${MONTHS[m - 1].slice(0, 3)} ${y}` : String(y); };
+  const when = (e) => (e.from || e.to ? `${esc(short(e.from))}${e.from && e.to === e.from ? '' : ` – ${e.to ? esc(short(e.to)) : 'present'}`}` : '');
+  const entry = (e) => `<li class="cv-entry">
+  <div class="cv-when">${when(e)}</div>
+  <div class="cv-what">
+    <h3>${e.link ? `<a href="${esc(e.link)}">${esc(e.title)}</a>` : esc(e.title)}</h3>
+    ${e.org || e.place ? `<p class="cv-org">${[e.org, e.place].filter(Boolean).map(esc).join(' · ')}</p>` : ''}
+    ${e.summary ? `<div class="cv-summary">${render(e.summary)}</div>` : ''}
+    ${e.highlights?.length ? `<ul class="cv-highlights">${e.highlights.map((h) => `<li>${inline(h)}</li>`).join('')}</ul>` : ''}
+    ${e.tags?.length ? `<p class="cv-tags">${e.tags.map((t) => `<span>${esc(t)}</span>`).join('')}</p>` : ''}
+  </div>
+</li>`;
+  // Newest first; anything still ongoing goes to the top.
+  const sorted = (list) => [...list].sort((a, b) => (!a.to - !b.to) * -1 || String(b.to || '').localeCompare(String(a.to || '')) || String(b.from || '').localeCompare(String(a.from || '')));
+  const sections = CV_SECTIONS.filter(([key]) => cv[key]?.length);
+
+  const intro = cv.intro ? `<div class="dek">${render(cv.intro)}</div>` : '';
+  const body = `<section class="page-head">
+  <h1>CV</h1>
+  ${intro}
+  ${sections.length > 1 || cv.pdf ? `<nav class="cv-jump" aria-label="CV sections">${sections.map(([key, label]) => `<a href="#${key}">${label}</a>`).join('')}${cv.pdf ? `<a class="cv-pdf" href="${esc(cv.pdf)}">Download PDF</a>` : ''}</nav>` : ''}
+</section>
+${sections.map(([key, label]) => `<section class="cv-section" id="${key}">
+  <h2>${label} <span class="count">${cv[key].length}</span></h2>
+  <ol class="cv-list">${sorted(cv[key]).map(entry).join('')}</ol>
+</section>`).join('\n')}`;
+  await write('cv/index.html', layout({ title: 'CV', active: '/cv/', body }));
+  previews['/cv/'] = { kind: 'Section', title: 'CV', text: sections.map(([key, label]) => `${cv[key].length} ${label.toLowerCase()}`).join(' · ') };
 }
 
 // ---------- photos ----------
@@ -692,6 +735,7 @@ async function main() {
   await buildBooks(books, render, previews);
   await buildPhotos(photos, previews);
   const travelSummary = await buildTravel(travel, render, previews);
+  await buildCV(render, previews);
   await buildPages(render, previews);
   await buildHome(notes, books, photos, travelSummary, previews);
 

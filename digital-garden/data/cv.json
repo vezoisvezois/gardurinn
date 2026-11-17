@@ -1,0 +1,50 @@
+{
+  "intro": "Where I’ve studied, worked, volunteered, and the projects I’m proud of. *These entries are placeholders — replace them with your own in `data/cv.json`.*",
+  "pdf": "",
+
+  "education": [
+    {
+      "title": "BSc in Your Subject",
+      "org": "Example University",
+      "place": "Reykjavík, Iceland",
+      "from": "2020-08",
+      "to": "2023-06",
+      "summary": "One or two sentences about what you studied.",
+      "highlights": ["Thesis: a title goes here", "An award, exchange or society"]
+    }
+  ],
+
+  "work": [
+    {
+      "title": "Job title",
+      "org": "Company name",
+      "place": "City, Country",
+      "from": "2023-08",
+      "summary": "What the role was about. Leave out `to` for a position you still hold.",
+      "highlights": ["Something you achieved", "Something you built or led"]
+    }
+  ],
+
+  "volunteer": [
+    {
+      "title": "Role",
+      "org": "Organisation",
+      "place": "City, Country",
+      "from": "2021-01",
+      "to": "2022-12",
+      "summary": "What you did and why it mattered."
+    }
+  ],
+
+  "projects": [
+    {
+      "title": "Project name",
+      "org": "Who it was for or with (optional)",
+      "from": "2024-03",
+      "to": "2024-09",
+      "summary": "What the project was and what you did.",
+      "link": "https://example.com",
+      "tags": ["Skill", "Tool"]
+    }
+  ]
+}
