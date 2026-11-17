@@ -1,5 +1,5 @@
 {
-  "home": "New Zealand",
+  "home": "Iceland",
   "intro": "Where I’ve been, how I got there, and how long I stayed. *This is sample data — replace it with your own trips in `data/travel.json`.*",
   "stays": [
     { "trip": "Sydney long weekend", "country": "Australia", "code": "AU", "place": "Sydney", "arrive": "2019-10-24", "depart": "2019-10-28" },
