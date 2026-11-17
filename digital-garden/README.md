@@ -107,6 +107,29 @@ Drop the photos into `content/photos/`, then list each one:
 
 Large originals are fine, because the build resizes them. Keep each file under about 50 MB so GitHub accepts it. If you have hundreds of photos, ask about moving them to an image host.
 
+## CV — `data/cv.json`
+
+The CV page has four sections: `education`, `work`, `volunteer` and `projects`. Each entry looks like this:
+
+```jsonc
+{
+  "title": "Job title",
+  "org": "Company name",            // optional
+  "place": "Reykjavík, Iceland",    // optional
+  "from": "2023-08",                // year-month, or just a year
+  "to": "2024-06",                  // leave out if it's ongoing ("present")
+  "when": "2017–2019, 2021–2024",   // optional: shown instead of from/to
+  "summary": "A sentence or two. *Markdown* works.",
+  "highlights": ["Bullet point", "Another one"],  // optional
+  "link": "https://…",             // optional, links the title
+  "tags": ["Scouting", "Youth work"] // optional, used for filtering
+}
+```
+
+**Tags.** Every entry can have `tags`. Visitors can filter the whole CV by clicking a tag, either in the filter bar at the top or on an entry. Set the order of the filter buttons with a top-level `"tags": ["Scouting", "Youth work", "LGBTQ+", "Writing", "Other"]`. Tags that no entry uses are left out, and any new tag you put on an entry is added automatically. A filtered view has its own link to share, e.g. `/cv/?tag=scouting`.
+
+Entries are sorted newest first, with ongoing ones at the top. A section with no entries is hidden. To offer a downloadable version, put the file in `static/` (e.g. `static/cv.pdf`) and set `"pdf": "/cv.pdf"`. The page also prints cleanly.
+
 ## Travel — `data/travel.json` and `data/airports.json`
 
 Countries are sorted into three groups: **home**, **lived** and **visited**.
