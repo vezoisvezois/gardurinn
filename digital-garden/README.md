@@ -122,9 +122,11 @@ The CV page has four sections: `education`, `work`, `volunteer` and `projects`. 
   "summary": "A sentence or two. *Markdown* works.",
   "highlights": ["Bullet point", "Another one"],  // optional
   "link": "https://…",             // optional, links the title
-  "tags": ["Skill", "Tool"]         // optional
+  "tags": ["Scouting", "Youth work"] // optional, used for filtering
 }
 ```
+
+**Tags.** Every entry can have `tags`. Visitors can filter the whole CV by clicking a tag, either in the filter bar at the top or on an entry. Set the order of the filter buttons with a top-level `"tags": ["Scouting", "Youth work", "LGBTQ+", "Writing", "Other"]`. Tags that no entry uses are left out, and any new tag you put on an entry is added automatically. A filtered view has its own link to share, e.g. `/cv/?tag=scouting`.
 
 Entries are sorted newest first, with ongoing ones at the top. A section with no entries is hidden. To offer a downloadable version, put the file in `static/` (e.g. `static/cv.pdf`) and set `"pdf": "/cv.pdf"`. The page also prints cleanly.
 
