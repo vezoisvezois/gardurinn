@@ -118,6 +118,7 @@ The CV page has four sections: `education`, `work`, `volunteer` and `projects`. 
   "place": "Reykjavík, Iceland",    // optional
   "from": "2023-08",                // year-month, or just a year
   "to": "2024-06",                  // leave out if it's ongoing ("present")
+  "when": "2017–2019, 2021–2024",   // optional: shown instead of from/to
   "summary": "A sentence or two. *Markdown* works.",
   "highlights": ["Bullet point", "Another one"],  // optional
   "link": "https://…",             // optional, links the title

@@ -1,50 +1,100 @@
 {
-  "intro": "Where I’ve studied, worked, volunteered, and the projects I’m proud of. *These entries are placeholders — replace them with your own in `data/cv.json`.*",
+  "intro": "Where I’ve studied, worked and volunteered.",
   "pdf": "",
 
   "education": [
     {
-      "title": "BSc in Your Subject",
-      "org": "Example University",
+      "title": "M.Ed. in Leisure Studies and Social Education",
+      "org": "University of Iceland (Háskóli Íslands)",
       "place": "Reykjavík, Iceland",
-      "from": "2020-08",
-      "to": "2023-06",
-      "summary": "One or two sentences about what you studied.",
-      "highlights": ["Thesis: a title goes here", "An award, exchange or society"]
+      "from": "2021",
+      "to": "2024",
+      "highlights": ["Master’s thesis on the inclusion of marginalised groups in scouting"]
+    },
+    {
+      "title": "M.A. in Gender Studies",
+      "org": "Linköping University",
+      "place": "Linköping, Sweden",
+      "from": "2022",
+      "to": "2023",
+      "highlights": ["Master’s thesis on negative discourse about trans people in Icelandic media, awarded the highest grade"]
+    },
+    {
+      "title": "B.A. in Philosophy, Politics and Economics",
+      "org": "Bifröst University (Háskólinn á Bifröst)",
+      "place": "Bifröst, Iceland",
+      "from": "2018",
+      "to": "2021",
+      "highlights": [
+        "Award at graduation for the highest grade average in the Faculty of Social Sciences",
+        "B.A. thesis on Iceland’s Gender Autonomy Act, awarded first-class honours"
+      ]
     }
   ],
 
   "work": [
     {
-      "title": "Job title",
-      "org": "Company name",
-      "place": "City, Country",
-      "from": "2023-08",
-      "summary": "What the role was about. Leave out `to` for a position you still hold.",
-      "highlights": ["Something you achieved", "Something you built or led"]
+      "title": "Specialist in Queer Affairs",
+      "org": "Reykjavík City Human Rights Office (Mannréttindaskrifstofa Reykjavíkurborgar)",
+      "from": "2023",
+      "highlights": [
+        "Education and advice on queer issues for City of Reykjavík staff",
+        "Running the City of Reykjavík’s Rainbow Certification programme (Regnbogavottun)",
+        "Representing the City of Reykjavík in international collaboration and projects on queer issues"
+      ]
+    },
+    {
+      "title": "Staff member",
+      "org": "Reykjadalur — summer camp for disabled children and young people",
+      "from": "2023",
+      "to": "2025",
+      "highlights": ["Camp staff in summer 2023", "Relief staff in summer 2025"]
+    },
+    {
+      "title": "Inclusion Project Manager",
+      "org": "Icelandic Scouting Association (Bandalag íslenskra skáta)",
+      "from": "2023",
+      "to": "2023",
+      "highlights": [
+        "Managed the project *Scouting for all children* (Skátastarf fyrir öll börn)",
+        "Partnership with the Guluhlíð after-school centre on scouting for disabled children",
+        "Organised family days at Úlfljótsvatn for families from Ukraine"
+      ]
+    },
+    {
+      "title": "Assistant Director",
+      "org": "Sigyn youth centre (Félagsmiðstöðin Sigyn)",
+      "place": "Grafarvogur, Reykjavík",
+      "from": "2021",
+      "to": "2022",
+      "highlights": [
+        "Day-to-day running of a youth centre serving 300 children and teenagers in Grafarvogur",
+        "Planning and running the programme, bookkeeping, purchasing and coordinating group activities",
+        "Led the Grafarvogur Youth Council (Ungmennaráð Grafarvogs), 2020–2022"
+      ]
     }
   ],
 
   "volunteer": [
     {
-      "title": "Role",
-      "org": "Organisation",
-      "place": "City, Country",
-      "from": "2021-01",
-      "to": "2022-12",
-      "summary": "What you did and why it mattered."
+      "title": "Scout leader for children aged 7–16",
+      "org": "Kópar Scout Group (Skátafélagið Kópar)",
+      "from": "2018"
+    },
+    {
+      "title": "Secretary",
+      "org": "Rainbow Cities Network — a global network of local governments for LGBTI equality",
+      "from": "2023",
+      "to": "2024"
+    },
+    {
+      "title": "Board member",
+      "org": "Samtökin ’78 — the National Queer Organisation of Iceland",
+      "from": "2017",
+      "to": "2024",
+      "when": "2017–2019, 2021–2024"
     }
   ],
 
-  "projects": [
-    {
-      "title": "Project name",
-      "org": "Who it was for or with (optional)",
-      "from": "2024-03",
-      "to": "2024-09",
-      "summary": "What the project was and what you did.",
-      "link": "https://example.com",
-      "tags": ["Skill", "Tool"]
-    }
-  ]
+  "projects": []
 }

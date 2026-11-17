@@ -375,7 +375,7 @@ async function buildCV(render, previews) {
   if (!cv) return;
   const inline = (s) => render(String(s)).replace(/^<p>|<\/p>\s*$/g, '');
   const short = (d) => { if (!d) return ''; const [y, m] = String(d).split('-').map(Number); return m ? `${MONTHS[m - 1].slice(0, 3)} ${y}` : String(y); };
-  const when = (e) => (e.from || e.to ? `${esc(short(e.from))}${e.from && e.to === e.from ? '' : ` – ${e.to ? esc(short(e.to)) : 'present'}`}` : '');
+  const when = (e) => (e.when ? esc(e.when) : e.from || e.to ? `${esc(short(e.from))}${e.from && e.to === e.from ? '' : ` – ${e.to ? esc(short(e.to)) : 'present'}`}` : '');
   const entry = (e) => `<li class="cv-entry">
   <div class="cv-when">${when(e)}</div>
   <div class="cv-what">
