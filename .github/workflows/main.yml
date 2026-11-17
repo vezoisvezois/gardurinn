@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   build:
-   runs-on: ubuntu-latest
+    runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: digital-garden
@@ -29,7 +29,7 @@ jobs:
       - run: npm run build
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: digital-garden/dist.
+          path: digital-garden/dist
 
   deploy:
     needs: build
