@@ -1,24 +1,32 @@
 // Small progressive enhancements. The site works without JavaScript; this adds polish.
 (() => {
+  const IS = document.documentElement.lang === 'is';
+  const one = (n) => n % 10 === 1 && n % 100 !== 11;
+  // Short badge and full title, e.g. ["6ya", "6 years ago"] / ["6 ár", "fyrir 6 árum"]
+  const units = (IS) => ({
+    d: (n) => (IS ? [`${n} d.`, `fyrir ${n} ${one(n) ? 'degi' : 'dögum'}`] : [`${n}d`, `${n} day${n > 1 ? 's' : ''} ago`]),
+    mo: (n) => (IS ? [`${n} mán.`, `fyrir ${n} ${one(n) ? 'mánuði' : 'mánuðum'}`] : [`${n}mo`, `${n} month${n > 1 ? 's' : ''} ago`]),
+    y: (n) => (IS ? [`${n} ár`, `fyrir ${n} ${one(n) ? 'ári' : 'árum'}`] : [`${n}ya`, `${n} year${n > 1 ? 's' : ''} ago`]),
+  });
   // ---------- "6ya" badges after dates ----------
-  function ago(iso) {
+  // The badge follows the language of the text around it (an English note on the Icelandic site gets English badges).
+  function ago(iso, unit) {
     const [y, m, d] = iso.split('-').map(Number);
     const now = new Date();
     if (!m) {
       const years = now.getFullYear() - y;
-      return years > 0 ? [`${years}ya`, `${years} year${years > 1 ? 's' : ''} ago`] : null;
+      return years > 0 ? unit.y(years) : null;
     }
     const then = new Date(y, m - 1, d || 1);
     const days = Math.floor((now - then) / 86400000);
     if (days < 1) return null;
-    if (days < 31) return [`${days}d`, `${days} day${days > 1 ? 's' : ''} ago`];
+    if (days < 31) return unit.d(days);
     const months = (now.getFullYear() - y) * 12 + (now.getMonth() - (m - 1)) - (d && now.getDate() < d ? 1 : 0);
-    if (months < 12) return [`${Math.max(months, 1)}mo`, `${Math.max(months, 1)} month${months > 1 ? 's' : ''} ago`];
-    const years = Math.floor(months / 12);
-    return [`${years}ya`, `${years} year${years > 1 ? 's' : ''} ago`];
+    if (months < 12) return unit.mo(Math.max(months, 1));
+    return unit.y(Math.floor(months / 12));
   }
   document.querySelectorAll('time.ago[datetime]').forEach((t) => {
-    const r = ago(t.getAttribute('datetime'));
+    const r = ago(t.getAttribute('datetime'), units((t.closest('[lang]')?.lang || 'en').startsWith('is')));
     if (!r) return;
     const b = document.createElement('span');
     b.className = 'ago-badge';
@@ -58,10 +66,10 @@
         html = `${p.image ? `<img class="pv-img" src="${esc(p.image)}" alt="">` : ''}
           <span class="eyebrow">${esc(p.kind)}${p.stage ? ` · ${esc(p.stage)}` : ''}</span>
           <h4>${esc(p.title)}</h4><p>${esc(p.text)}</p>
-          ${p.date ? `<div class="pv-foot"><span>Last tended ${esc(p.date)}</span></div>` : ''}`;
+          ${p.date ? `<div class="pv-foot"><span>${IS ? 'Síðast uppfært' : 'Last tended'} ${esc(p.date)}</span></div>` : ''}`;
       } else if (/^https?:$/.test(url.protocol)) {
         const label = a.dataset.preview || a.title || '';
-        html = `<span class="eyebrow">External link ↗</span><h4>${esc(url.hostname.replace(/^www\./, ''))}</h4>
+        html = `<span class="eyebrow">${IS ? 'Ytri tengill' : 'External link'} ↗</span><h4>${esc(url.hostname.replace(/^www\./, ''))}</h4>
           ${label ? `<p>${esc(label)}</p>` : ''}<div class="pv-url">${esc(url.href.replace(/^https?:\/\//, '').slice(0, 90))}</div>`;
       } else return;
       if (current !== a) return;

@@ -25,7 +25,7 @@
   for (const url of ['/data/countries-110m.json', 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json']) {
     try { const r = await fetch(url); if (r.ok) { topo = await r.json(); break; } } catch { /* try next */ }
   }
-  if (!topo) { el.innerHTML = '<p class="muted map-loading">The map couldn’t load right now.</p>'; return; }
+  if (!topo) { el.innerHTML = `<p class="muted map-loading">${(data.t && data.t.failed) || 'The map couldn’t load right now.'}</p>`; return; }
 
   // ---- TopoJSON decoding ----
   const tf = topo.transform;
@@ -91,9 +91,11 @@
     if (!cur) places.set(key, { kind, labels: [label] });
     else if (cur.kind === kind) cur.labels.push(label);
   };
-  if (data.home) add('home', data.home.name, `${data.home.flag} ${data.home.name} · home`);
-  for (const c of data.lived || []) add('lived', c.name, `${c.flag} ${c.name} · lived ${c.years}`);
-  for (const c of data.visited || []) add('visited', c.name, `${c.flag} ${c.name}${c.nights ? ` · ${c.nights} nights` : ''}`);
+  const t = data.t || {};
+  const nightsWord = (n) => (data.lang === 'is' ? (n % 10 === 1 && n % 100 !== 11) : n === 1) ? t.nightsOne : t.nightsMany;
+  if (data.home) add('home', data.home.name, `${data.home.flag} ${data.home.label || data.home.name} · ${t.home || 'home'}`);
+  for (const c of data.lived || []) add('lived', c.name, `${c.flag} ${c.label || c.name} · ${t.lived || 'lived'} ${c.years}`);
+  for (const c of data.visited || []) add('visited', c.name, `${c.flag} ${c.label || c.name}${c.nights ? ` · ${c.nights} ${nightsWord(c.nights)}` : ''}`);
   const geoms = (topo.objects.countries || Object.values(topo.objects)[0]).geometries;
 
   // Places too small for this map get a dot instead of a shape.
@@ -134,7 +136,7 @@
   const routes = data.routes.map(({ a, b, count }) => {
     const A = ap.get(a), B = ap.get(b);
     if (!A || !B) return '';
-    return `<path class="route" d="${linePath(greatCircle(A, B))}" style="stroke-width:${Math.min(1 + count * 0.35, 3)}" data-tip="${esc(`${a} ⇄ ${b}${count > 1 ? ` · ${count} flights` : ''}`)}"/>`;
+    return `<path class="route" d="${linePath(greatCircle(A, B))}" style="stroke-width:${Math.min(1 + count * 0.35, 3)}" data-tip="${esc(`${a} ⇄ ${b}${count > 1 ? ` · ${count} ${(data.t && data.t.flights) || 'flights'}` : ''}`)}"/>`;
   });
   const dots = data.airports.map((a) => {
     const [x, y] = proj(a.lon, a.lat);

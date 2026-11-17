@@ -18,7 +18,7 @@ function build() {
 }
 build();
 
-for (const dir of ['content', 'data', 'static', 'site.config.json', 'build.mjs']) {
+for (const dir of ['content', 'data', 'static', 'site.config.json', 'build.mjs', 'i18n.mjs']) {
   const full = path.join(ROOT, dir);
   if (fs.existsSync(full)) fs.watch(full, { recursive: true }, () => build());
 }

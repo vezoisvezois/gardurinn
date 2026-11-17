@@ -1,4 +1,4 @@
-// Digital garden builder — turns content/ and data/ into a static site in dist/.
+// Digital garden builder — turns content/ and data/ into a static site in dist/, in Icelandic and English.
 // Run: npm run build   (or npm run dev for a local preview that rebuilds on save)
 
 import fs from 'node:fs/promises';
@@ -6,6 +6,7 @@ import fss from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { marked } from 'marked';
+import { LANGS, DEFAULT_LANG, ROUTES, OLD_ROUTES, STRINGS, COUNTRY_NAMES, REGIONS, fmtDate as fmtDateL, fmtShort as fmtShortL, spanText as spanTextL } from './i18n.mjs';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const OUT = path.join(ROOT, 'dist');
@@ -14,22 +15,32 @@ const p = (...a) => path.join(ROOT, ...a);
 let sharp = null;
 try { sharp = (await import('sharp')).default; } catch { /* optional: photos are copied as-is */ }
 
+// ---------- current language ----------
+// The site is built once per language. These are set at the start of each pass.
+let lang = DEFAULT_LANG, T = STRINGS[lang], R = ROUTES[lang];
+const other = (l = lang) => LANGS.find((x) => x !== l);
+function setLang(l) { lang = l; T = STRINGS[l]; R = ROUTES[l]; }
+
+// A value in data files can be plain text, or { "is": "…", "en": "…" } for both languages.
+const isLocalized = (v) => v && typeof v === 'object' && !Array.isArray(v) && LANGS.some((l) => l in v);
+const L = (v, l = lang) => (isLocalized(v) ? v[l] ?? v[other(l)] ?? '' : v);
+// Which language a value is actually shown in (to mark text that hasn't been translated yet).
+const langOf = (v, l = lang) => (isLocalized(v) && v[l] == null ? other(l) : l);
+
 // ---------- helpers ----------
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const readJSON = async (f, fallback) => { try { return JSON.parse(await fs.readFile(f, 'utf8')); } catch (e) { if (e.code === 'ENOENT') return fallback; throw new Error(`${f}: ${e.message}`); } };
-const slugify = (s) => String(s).trim().toLowerCase().replace(/['’]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+// Icelandic letters are spelled out so slugs stay readable: "Þórsmörk ferð" → "thorsmork-ferd"
+const slugify = (s) => String(s).trim().toLowerCase().replace(/þ/g, 'th').replace(/ð/g, 'd').replace(/æ/g, 'ae').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/['’]/g, '').replace(/\+/g, 'plus').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 const asDate = (s) => { const [y, m = 1, d = 1] = String(s).split('-').map(Number); return new Date(Date.UTC(y, m - 1, d)); };
-
-function fmtDate(s) {
-  if (!s) return '';
-  const [y, m, d] = String(s).split('-').map(Number);
-  if (!m) return String(y);
-  if (!d) return `${MONTHS[m - 1]} ${y}`;
-  return `${d} ${MONTHS[m - 1]} ${y}`;
-}
+const fmtDate = (s) => fmtDateL(lang, s);
+const fmtShort = (s) => fmtShortL(lang, s);
+const spanText = (days) => spanTextL(lang, days);
+const num = (n) => Number(n).toLocaleString(lang);
 // <time class="ago"> gets a small "6ya" badge added in the browser, so it never goes stale.
 const timeTag = (s) => (s ? `<time class="ago" datetime="${esc(s)}">${esc(fmtDate(s))}</time>` : '');
+// A small label for text shown in the other language because it hasn't been translated.
+const onlyIn = (l) => `<span class="only-in" lang="${lang}">${esc(T.onlyIn[l])}</span>`;
 
 function parseFrontmatter(src) {
   const m = src.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
@@ -48,11 +59,18 @@ function parseFrontmatter(src) {
   return { data, body: src.slice(m[0].length) };
 }
 
+// "welcome.en.md" → { base: "welcome", lang: "en" }. No suffix means the default language (or `lang:` in the front matter).
+function fileLang(f, data) {
+  const m = f.match(/^(.*?)(?:\.(is|en))?\.md$/);
+  return { base: m[1], lang: m[2] || (LANGS.includes(data.lang) ? data.lang : DEFAULT_LANG) };
+}
+
 async function write(rel, content) {
-  const f = path.join(OUT, rel);
+  const f = path.join(OUT, rel.replace(/^\//, ''));
   await fs.mkdir(path.dirname(f), { recursive: true });
   await fs.writeFile(f, content);
 }
+const writePage = (url, html) => write(path.join(url, 'index.html'), html);
 
 async function copyDir(src, dest) {
   if (!fss.existsSync(src)) return;
@@ -61,21 +79,12 @@ async function copyDir(src, dest) {
 
 // ---------- config ----------
 const config = await readJSON(p('site.config.json'), {});
-const NAV = [
-  ['Garden', '/garden/'],
-  ['Books', '/books/'],
-  ['Photos', '/photos/'],
-  ['Travel', '/travel/'],
-  ['CV', '/cv/'],
-  ['About', '/about/'],
-];
+const C = (key, fallback = '') => L(config[key]) || fallback;
+const NAV = ['garden', 'books', 'photos', 'travel', 'cv', 'about'];
 
 // ---------- icons ----------
-const STAGES = {
-  seedling: { label: 'Seedling', blurb: 'Rough and early. An idea I’ve only just planted.' },
-  budding: { label: 'Budding', blurb: 'Taking shape. Cleaned up, but still growing.' },
-  evergreen: { label: 'Evergreen', blurb: 'Fairly complete. I’ll still tend it now and then.' },
-};
+const STAGE_KEYS = ['seedling', 'budding', 'evergreen'];
+const TYPE_KEYS = ['essay', 'note', 'pattern', 'project'];
 const stageIcon = (stage) => {
   const paths = {
     seedling: '<path d="M12 21v-8"/><path d="M12 13c0-3-2-5-6-5 0 3 2 5 6 5z"/><path d="M12 11c0-3 2-5 6-5 0 3-2 5-6 5z"/>',
@@ -84,14 +93,17 @@ const stageIcon = (stage) => {
   };
   return `<svg class="stage-icon stage-${esc(stage)}" viewBox="0 0 24 24" aria-hidden="true">${paths[stage] || paths.seedling}</svg>`;
 };
-const stageBadge = (stage) => (STAGES[stage] ? `<span class="stage" title="${esc(STAGES[stage].blurb)}">${stageIcon(stage)}${STAGES[stage].label}</span>` : '');
-const TYPES = { essay: 'Essay', note: 'Note', pattern: 'Pattern', project: 'Project' };
+const stageBadge = (stage) => (T.stages[stage] ? `<span class="stage" title="${esc(T.stages[stage].blurb)}">${stageIcon(stage)}${T.stages[stage].label}</span>` : '');
 
 // ---------- layout ----------
-function layout({ title, description = config.description, active = '', body, scripts = '', bodyClass = '' }) {
-  const fullTitle = title ? `${title} · ${config.title}` : config.title;
+// `alt` is the address of the same page in the other language.
+function layout({ title, description = C('description'), active = '', body, scripts = '', bodyClass = '', url, alt }) {
+  const site = C('title');
+  const fullTitle = title ? `${title} · ${site}` : site;
+  const o = other();
+  const base = String(config.url || '').replace(/\/$/, '');
   return `<!doctype html>
-<html lang="${esc(config.lang || 'en')}">
+<html lang="${lang}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -99,6 +111,9 @@ function layout({ title, description = config.description, active = '', body, sc
 <meta name="description" content="${esc(description)}">
 <meta property="og:title" content="${esc(fullTitle)}">
 <meta property="og:description" content="${esc(description)}">
+<meta property="og:locale" content="${lang === 'is' ? 'is_IS' : 'en_GB'}">
+${url ? `<link rel="alternate" hreflang="${lang}" href="${base}${url}">` : ''}
+${alt ? `<link rel="alternate" hreflang="${o}" href="${base}${alt}">` : ''}
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌱</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -106,17 +121,18 @@ function layout({ title, description = config.description, active = '', body, sc
 <link rel="stylesheet" href="/assets/styles.css">
 </head>
 <body class="${esc(bodyClass)}">
-<a class="skip" href="#main">Skip to content</a>
+<a class="skip" href="#main">${T.skip}</a>
 <header class="site-header">
-  <a class="brand" href="/">${esc(config.title)}</a>
-  <nav aria-label="Main">${NAV.map(([label, href]) => `<a href="${href}"${active === href ? ' aria-current="page"' : ''}>${label}</a>`).join('')}</nav>
+  <a class="brand" href="${R.home}">${esc(site)}</a>
+  <nav aria-label="Main">${NAV.map((k) => `<a href="${R[k]}"${active === k ? ' aria-current="page"' : ''}>${T.nav[k]}</a>`).join('')}</nav>
+  <a class="lang-switch" href="${alt || ROUTES[o].home}" hreflang="${o}" lang="${o}">${T.switchTo}</a>
 </header>
 <main id="main" data-previews>
 ${body}
 </main>
 <footer class="site-footer">
-  <p>${esc(config.footer || '')}</p>
-  <p class="muted">Tended by ${esc(config.author)} · <a href="/garden/">Browse the garden</a></p>
+  <p>${esc(C('footer'))}</p>
+  <p class="muted">${esc(T.footerTended(config.author || ''))} · <a href="${R.garden}">${T.browseGarden}</a></p>
 </footer>
 <script src="/assets/garden.js" defer></script>
 ${scripts}
@@ -125,6 +141,7 @@ ${scripts}
 }
 
 // ---------- markdown: sidenotes, wikilinks, relative dates ----------
+// notesBySlug holds the notes as they appear in the current language.
 function makeRenderer(notesBySlug, backlinks) {
   return function render(body, fromSlug = null, idPrefix = 'sn') {
     const tokens = [];
@@ -139,9 +156,9 @@ function makeRenderer(notesBySlug, backlinks) {
           const text = label || note?.title || target;
           if (note) {
             if (fromSlug && fromSlug !== slug) backlinks.get(slug)?.add(fromSlug);
-            return keep(`<a href="/notes/${slug}/" class="wikilink">${esc(text)}</a>`);
+            return keep(`<a href="${R.notes}${slug}/" class="wikilink">${esc(text)}</a>`);
           }
-          return keep(`<span class="wikilink unplanted" title="Not planted yet">${esc(text)}</span>`);
+          return keep(`<span class="wikilink unplanted" title="${esc(T.notPlanted)}">${esc(text)}</span>`);
         })
         // {{2019}} {{2019-03}} {{2019-03-14}}
         .replace(/\{\{(\d{4}(?:-\d{2}(?:-\d{2})?)?)\}\}/g, (_, d) => keep(timeTag(d)));
@@ -164,19 +181,21 @@ function makeRenderer(notesBySlug, backlinks) {
       const content = marked.parseInline(restoreCode(inline(defs.get(id))));
       const uid = `${idPrefix}-${n}`;
       return keep(
-        `<span class="sn"><label for="${uid}" class="sn-ref" aria-label="Sidenote ${n}">${n}</label><input type="checkbox" id="${uid}" class="sn-check"><span class="sidenote" role="note"><span class="sn-num">${n}</span>${content}</span></span>`
+        `<span class="sn"><label for="${uid}" class="sn-ref" aria-label="${T.sidenote} ${n}">${n}</label><input type="checkbox" id="${uid}" class="sn-check"><span class="sidenote" role="note"><span class="sn-num">${n}</span>${content}</span></span>`
       );
     });
 
-    // Plain markdown links to /notes/x/ also count as backlinks
+    // Plain markdown links to notes also count as backlinks
     if (fromSlug) {
-      for (const m of src.matchAll(/\]\(\/notes\/([^/)#\s]+)\/?[^)]*\)/g)) {
+      for (const m of src.matchAll(/\]\((?:\/en)?\/(?:notes|glosur)\/([^/)#\s]+)\/?[^)]*\)/g)) {
         if (m[1] !== fromSlug) backlinks.get(m[1])?.add(fromSlug);
       }
     }
 
     let html = marked.parse(restoreCode(src));
     for (let i = 0; i < 5 && /ZZTOK\d+ZZ/.test(html); i++) html = html.replace(/ZZTOK(\d+)ZZ/g, (_, k) => tokens[+k]);
+    // Links written as /notes/x/ point at the note in the current language
+    html = html.replace(/href="(?:\/en)?\/(?:notes|glosur)\/([^"#?]+)/g, (_, rest) => `href="${R.notes}${rest}`);
     // External links open in a new tab
     html = html.replace(/<a href="(https?:\/\/[^"]+)"/g, '<a href="$1" target="_blank" rel="noopener"');
     return html;
@@ -186,35 +205,52 @@ function makeRenderer(notesBySlug, backlinks) {
 const plainText = (md) => md.replace(/^\[\^[^\]]+\]:.*$/gm, '').replace(/\[\^[^\]]+\]/g, '').replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_, a, b) => b || a).replace(/\{\{([\d-]+)\}\}/g, '$1').replace(/!\[[^\]]*\]\([^)]*\)/g, '').replace(/\[([^\]]+)\]\([^)]*\)/g, '$1').replace(/[#>*_`~]/g, '').replace(/\s+/g, ' ').trim();
 const excerpt = (md, len = 180) => { const t = plainText(md); return t.length > len ? t.slice(0, len).replace(/\s+\S*$/, '') + '…' : t; };
 
-// ---------- load notes ----------
-async function loadNotes() {
-  const dir = p('content', 'notes');
-  const files = fss.existsSync(dir) ? (await fs.readdir(dir)).filter((f) => f.endsWith('.md')) : [];
-  const notes = [];
-  for (const f of files) {
+// ---------- load notes and pages ----------
+// Each returns a Map of slug → { is: version, en: version }, with either language possibly missing.
+async function loadVersions(dir, make) {
+  const all = new Map();
+  if (!fss.existsSync(dir)) return all;
+  for (const f of (await fs.readdir(dir)).filter((x) => x.endsWith('.md'))) {
     const { data, body } = parseFrontmatter(await fs.readFile(path.join(dir, f), 'utf8'));
     if (data.draft === true) continue;
-    const slug = f.replace(/\.md$/, '');
-    notes.push({
-      slug,
-      title: data.title || slug,
-      description: data.description || excerpt(body, 140),
-      type: TYPES[data.type] ? data.type : 'note',
-      stage: STAGES[data.stage] ? data.stage : 'seedling',
-      planted: data.planted || '',
-      tended: data.tended || data.planted || '',
-      topics: Array.isArray(data.topics) ? data.topics : data.topics ? [data.topics] : [],
-      body,
-    });
+    const { base, lang: l } = fileLang(f, data);
+    if (!all.has(base)) all.set(base, {});
+    all.get(base)[l] = make(base, l, data, body);
   }
-  notes.sort((a, b) => String(b.tended).localeCompare(String(a.tended)));
-  return notes;
+  return all;
+}
+
+const loadNotes = () => loadVersions(p('content', 'notes'), (slug, l, data, body) => ({
+  slug,
+  lang: l,
+  title: data.title || slug,
+  description: data.description || excerpt(body, 140),
+  type: TYPE_KEYS.includes(data.type) ? data.type : 'note',
+  stage: STAGE_KEYS.includes(data.stage) ? data.stage : 'seedling',
+  planted: data.planted || '',
+  tended: data.tended || data.planted || '',
+  topics: Array.isArray(data.topics) ? data.topics : data.topics ? [data.topics] : [],
+  body,
+}));
+
+const loadPages = () => loadVersions(p('content', 'pages'), (slug, l, data, body) => ({ slug, lang: l, data, body }));
+
+// The notes as seen in one language: its own version where there is one, the other language's otherwise.
+const pick = (versions, l) => versions[l] || versions[other(l)];
+
+// A page's address: "about" uses the built-in /um/ and /en/about/; others use `path:` from the front matter, or the file name.
+function pageUrl(versions, l) {
+  if (versions[l]?.data.path) return `${l === DEFAULT_LANG ? '' : `/${l}`}/${versions[l].data.path}/`;
+  const slug = (versions.is || versions.en).slug;
+  if (ROUTES[l][slug]) return ROUTES[l][slug];
+  return `${l === DEFAULT_LANG ? '' : `/${l}`}/${slug}/`;
 }
 
 function noteCard(n) {
-  return `<li class="card note-card" data-type="${n.type}" data-stage="${n.stage}">
-  <a href="/notes/${n.slug}/">
-    <span class="eyebrow">${TYPES[n.type]}</span>
+  const fallback = n.lang !== lang;
+  return `<li class="card note-card" data-type="${n.type}" data-stage="${n.stage}"${fallback ? ` lang="${n.lang}"` : ''}>
+  <a href="${R.notes}${n.slug}/">
+    <span class="eyebrow">${T.types[n.type]}${fallback ? ` <span class="lang-tag">${n.lang.toUpperCase()}</span>` : ''}</span>
     <h3>${esc(n.title)}</h3>
     <p>${esc(n.description)}</p>
     <span class="card-foot">${stageBadge(n.stage)}<span class="muted">${esc(fmtDate(n.tended))}</span></span>
@@ -230,111 +266,117 @@ async function buildNotes(notes, render, backlinks, previews) {
 
   for (const n of notes) {
     const back = [...(backlinks.get(n.slug) || [])].map((s) => notesBySlug.get(s)).filter(Boolean);
-    const body = `<article class="note">
+    const fallback = n.lang !== lang;
+    const body = `<article class="note"${fallback ? ` lang="${n.lang}"` : ''}>
   <header class="note-head">
-    <p class="eyebrow">${TYPES[n.type]} ${stageBadge(n.stage)}</p>
+    ${fallback ? `<p>${onlyIn(n.lang)}</p>` : ''}
+    <p class="eyebrow">${T.types[n.type]} ${stageBadge(n.stage)}</p>
     <h1>${esc(n.title)}</h1>
     ${n.description ? `<p class="dek">${esc(n.description)}</p>` : ''}
-    <dl class="meta">
-      ${n.planted ? `<div><dt>Planted</dt><dd>${timeTag(n.planted)}</dd></div>` : ''}
-      ${n.tended && n.tended !== n.planted ? `<div><dt>Last tended</dt><dd>${timeTag(n.tended)}</dd></div>` : ''}
-      ${n.topics.length ? `<div><dt>Topics</dt><dd>${n.topics.map((t) => `<a class="chip" href="/garden/#${slugify(t)}">${esc(t)}</a>`).join(' ')}</dd></div>` : ''}
+    <dl class="meta" lang="${lang}">
+      ${n.planted ? `<div><dt>${T.planted}</dt><dd>${timeTag(n.planted)}</dd></div>` : ''}
+      ${n.tended && n.tended !== n.planted ? `<div><dt>${T.tended}</dt><dd>${timeTag(n.tended)}</dd></div>` : ''}
+      ${n.topics.length ? `<div><dt>${T.topics}</dt><dd>${n.topics.map((t) => `<a class="chip" href="${R.garden}#${slugify(t)}">${esc(t)}</a>`).join(' ')}</dd></div>` : ''}
     </dl>
   </header>
   <div class="prose">
 ${n.html}
   </div>
-  ${back.length ? `<aside class="backlinks"><h2>Linking here</h2><ul class="cards">${back.map(noteCard).join('')}</ul></aside>` : ''}
+  ${back.length ? `<aside class="backlinks" lang="${lang}"><h2>${T.linkingHere}</h2><ul class="cards">${back.map(noteCard).join('')}</ul></aside>` : ''}
 </article>`;
-    await write(`notes/${n.slug}/index.html`, layout({ title: n.title, description: n.description, active: '/garden/', body }));
-    previews[`/notes/${n.slug}/`] = { kind: TYPES[n.type], title: n.title, text: n.description, stage: STAGES[n.stage].label, date: n.tended };
+    const url = `${R.notes}${n.slug}/`;
+    await writePage(url, layout({ title: n.title, description: n.description, active: 'garden', body, url, alt: `${ROUTES[other()].notes}${n.slug}/` }));
+    previews[url] = { kind: T.types[n.type], title: n.title, text: n.description, stage: T.stages[n.stage].label, date: n.tended };
   }
 }
 
 async function buildGarden(notes, previews) {
-  const topics = [...new Set(notes.flatMap((n) => n.topics))].sort();
+  const topics = [...new Set(notes.flatMap((n) => n.topics))].sort((a, b) => a.localeCompare(b, lang));
   const body = `<section class="page-head">
-  <h1>The Garden</h1>
-  <p class="dek">${esc(config.gardenIntro || 'Notes, essays and half-finished thoughts, growing at different speeds.')}</p>
-  <ul class="stage-key">${Object.entries(STAGES).map(([k, s]) => `<li>${stageIcon(k)}<strong>${s.label}</strong> <span class="muted">${s.blurb}</span></li>`).join('')}</ul>
+  <h1>${T.gardenTitle}</h1>
+  <p class="dek">${esc(C('gardenIntro', T.gardenIntro))}</p>
+  <ul class="stage-key">${STAGE_KEYS.map((k) => `<li>${stageIcon(k)}<strong>${T.stages[k].label}</strong> <span class="muted">${T.stages[k].blurb}</span></li>`).join('')}</ul>
 </section>
-<div class="filters" role="toolbar" aria-label="Filter notes">
-  <div class="filter-group"><button data-filter="type" data-value="all" aria-pressed="true">All</button>${Object.entries(TYPES).filter(([k]) => notes.some((n) => n.type === k)).map(([k, v]) => `<button data-filter="type" data-value="${k}" aria-pressed="false">${v}s</button>`).join('')}</div>
-  <div class="filter-group"><button data-filter="stage" data-value="all" aria-pressed="true">Any stage</button>${Object.entries(STAGES).map(([k, v]) => `<button data-filter="stage" data-value="${k}" aria-pressed="false">${stageIcon(k)}${v.label}</button>`).join('')}</div>
-  ${topics.length ? `<div class="filter-group topics"><button data-filter="topic" data-value="all" aria-pressed="true">All topics</button>${topics.map((t) => `<button data-filter="topic" data-value="${slugify(t)}" aria-pressed="false">${esc(t)}</button>`).join('')}</div>` : ''}
+<div class="filters" role="toolbar" aria-label="${T.filterNotes}">
+  <div class="filter-group"><button data-filter="type" data-value="all" aria-pressed="true">${T.all}</button>${TYPE_KEYS.filter((k) => notes.some((n) => n.type === k)).map((k) => `<button data-filter="type" data-value="${k}" aria-pressed="false">${T.typesPlural[k]}</button>`).join('')}</div>
+  <div class="filter-group"><button data-filter="stage" data-value="all" aria-pressed="true">${T.anyStage}</button>${STAGE_KEYS.map((k) => `<button data-filter="stage" data-value="${k}" aria-pressed="false">${stageIcon(k)}${T.stages[k].label}</button>`).join('')}</div>
+  ${topics.length ? `<div class="filter-group topics"><button data-filter="topic" data-value="all" aria-pressed="true">${T.allTopics}</button>${topics.map((t) => `<button data-filter="topic" data-value="${slugify(t)}" aria-pressed="false">${esc(t)}</button>`).join('')}</div>` : ''}
 </div>
 <ul class="cards garden-grid">${notes.map((n) => noteCard(n).replace('<li class="card note-card"', `<li class="card note-card" data-topics="${n.topics.map(slugify).join(' ')}"`)).join('')}</ul>
-<p class="empty muted" hidden>Nothing growing here yet.</p>`;
-  await write('garden/index.html', layout({ title: 'Garden', active: '/garden/', body }));
-  previews['/garden/'] = { kind: 'Section', title: 'The Garden', text: `${notes.length} notes and essays at different stages of growth.` };
+<p class="empty muted" hidden>${T.nothingHere}</p>`;
+  await writePage(R.garden, layout({ title: T.nav.garden, active: 'garden', body, url: R.garden, alt: ROUTES[other()].garden }));
+  previews[R.garden] = { kind: T.kind.section, title: T.gardenTitle, text: C('gardenIntro', T.gardenIntro) };
 }
 
 async function buildHome(notes, books, photos, travelSummary, previews) {
   const reading = books.filter((b) => b.status === 'reading').slice(0, 3);
   const recentPhotos = photos.slice(0, 4);
+  const s = travelSummary;
   const body = `<section class="hero">
-  <h1>${config.heroTitle || esc(config.title)}</h1>
-  <p class="dek">${esc(config.heroIntro || config.description)}</p>
+  <h1>${C('heroTitle') || esc(C('title'))}</h1>
+  <p class="dek">${esc(C('heroIntro') || C('description'))}</p>
 </section>
 <section class="home-section">
-  <div class="section-head"><h2>Recently tended</h2><a href="/garden/">The whole garden →</a></div>
+  <div class="section-head"><h2>${T.recentlyTended}</h2><a href="${R.garden}">${T.wholeGarden}</a></div>
   <ul class="cards">${notes.slice(0, 6).map(noteCard).join('')}</ul>
 </section>
 <section class="home-grid">
-  <a class="tile" href="/books/">
-    <span class="eyebrow">Library</span>
-    <h2>Books</h2>
-    <p>${books.filter((b) => b.status === 'read').length} read${reading.length ? ` · currently reading <em>${esc(reading[0].title)}</em>` : ''}</p>
+  <a class="tile" href="${R.books}">
+    <span class="eyebrow">${T.library}</span>
+    <h2>${T.nav.books}</h2>
+    <p>${T.booksRead(books.filter((b) => b.status === 'read').length)}${reading.length ? ` · ${T.currentlyReading} <em>${esc(L(reading[0].title))}</em>` : ''}</p>
   </a>
-  <a class="tile" href="/photos/">
-    <span class="eyebrow">Life in pictures</span>
-    <h2>Photos</h2>
+  <a class="tile" href="${R.photos}">
+    <span class="eyebrow">${T.lifeInPictures}</span>
+    <h2>${T.nav.photos}</h2>
     <div class="tile-photos">${recentPhotos.map((ph) => `<img src="${ph.thumb}" alt="" loading="lazy">`).join('')}</div>
   </a>
-  <a class="tile" href="/travel/">
-    <span class="eyebrow">Atlas</span>
-    <h2>Travel</h2>
-    <p>${[`${travelSummary.countries} countries`, travelSummary.lived && `lived in ${travelSummary.lived}`, travelSummary.nights && `${travelSummary.nights} nights abroad`, travelSummary.airports && `${travelSummary.airports} airports`].filter(Boolean).join(' · ')}</p>
+  <a class="tile" href="${R.travel}">
+    <span class="eyebrow">${T.atlas}</span>
+    <h2>${T.nav.travel}</h2>
+    <p>${T.travelTile(s.countries, s.lived, s.nights && num(s.nights), s.airports)}</p>
   </a>
 </section>`;
-  await write('index.html', layout({ title: '', active: '/', body, bodyClass: 'home' }));
-  previews['/'] = { kind: 'Home', title: config.title, text: config.description };
+  await writePage(R.home, layout({ title: '', active: 'home', body, bodyClass: 'home', url: R.home, alt: ROUTES[other()].home }));
+  previews[R.home] = { kind: T.kind.home, title: C('title'), text: C('description') };
 }
 
-async function buildPages(render, previews) {
-  const dir = p('content', 'pages');
-  if (!fss.existsSync(dir)) return;
-  for (const f of (await fs.readdir(dir)).filter((x) => x.endsWith('.md'))) {
-    const { data, body } = parseFrontmatter(await fs.readFile(path.join(dir, f), 'utf8'));
-    const slug = f.replace(/\.md$/, '');
-    const html = render(body, null, `sn-${slug}`);
-    const page = `<article class="note">
-  <header class="note-head"><h1>${esc(data.title || slug)}</h1>${data.description ? `<p class="dek">${esc(data.description)}</p>` : ''}</header>
+async function buildPages(pages, render, previews) {
+  for (const versions of pages.values()) {
+    const pg = pick(versions, lang);
+    const fallback = pg.lang !== lang;
+    const html = render(pg.body, null, `sn-${pg.slug}`);
+    const { title, description } = pg.data;
+    const page = `<article class="note"${fallback ? ` lang="${pg.lang}"` : ''}>
+  <header class="note-head">${fallback ? `<p>${onlyIn(pg.lang)}</p>` : ''}<h1>${esc(title || pg.slug)}</h1>${description ? `<p class="dek">${esc(description)}</p>` : ''}</header>
   <div class="prose">${html}</div>
 </article>`;
-    await write(`${slug}/index.html`, layout({ title: data.title, description: data.description, active: `/${slug}/`, body: page }));
-    previews[`/${slug}/`] = { kind: 'Page', title: data.title || slug, text: data.description || excerpt(body) };
+    const url = pageUrl(versions, lang);
+    await writePage(url, layout({ title, description, active: NAV.includes(pg.slug) ? pg.slug : '', body: page, url, alt: pageUrl(versions, other()) }));
+    previews[url] = { kind: T.kind.page, title: title || pg.slug, text: description || excerpt(pg.body) };
   }
 }
 
 // ---------- books ----------
 function bookCover(b) {
-  const hue = [...b.title].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
-  const fallback = `<div class="cover-fallback" style="--hue:${hue}"><span>${esc(b.title)}</span><small>${esc(b.author)}</small></div>`;
+  const title = L(b.title);
+  const hue = [...title].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
+  const fallback = `<div class="cover-fallback" style="--hue:${hue}"><span>${esc(title)}</span><small>${esc(b.author)}</small></div>`;
   const src = b.cover || (b.isbn ? `https://covers.openlibrary.org/b/isbn/${String(b.isbn).replace(/[^0-9X]/gi, '')}-M.jpg?default=false` : '');
-  return `<div class="cover">${fallback}${src ? `<img src="${esc(src)}" alt="Cover of ${esc(b.title)}" loading="lazy" onerror="this.remove()">` : ''}</div>`;
+  return `<div class="cover">${fallback}${src ? `<img src="${esc(src)}" alt="${esc(T.coverOf(title))}" loading="lazy" onerror="this.remove()">` : ''}</div>`;
 }
-const stars = (r) => (r ? `<span class="rating" aria-label="${r} out of 5">${'★'.repeat(r)}<span class="muted">${'★'.repeat(5 - r)}</span></span>` : '');
+const stars = (r) => (r ? `<span class="rating" aria-label="${T.outOf5(r)}">${'★'.repeat(r)}<span class="muted">${'★'.repeat(5 - r)}</span></span>` : '');
 
 function bookCard(b, render) {
+  const thoughts = b.thoughts ? L(b.thoughts) : '';
   const inner = `${bookCover(b)}
     <div class="book-meta">
-      <h3>${esc(b.title)}</h3>
+      <h3>${esc(L(b.title))}</h3>
       <p class="muted">${esc(b.author)}</p>
       ${stars(b.rating)}
-      ${b.thoughts ? `<div class="book-thoughts">${render(b.thoughts)}</div>` : ''}
-      ${b.note ? `<a class="book-link" href="/notes/${esc(b.note)}/">Read my notes →</a>` : ''}
-      ${b.finished ? `<p class="muted small">Finished ${timeTag(b.finished)}</p>` : ''}
+      ${thoughts ? `<div class="book-thoughts"${langOf(b.thoughts) !== lang ? ` lang="${langOf(b.thoughts)}"` : ''}>${render(thoughts)}</div>` : ''}
+      ${b.note ? `<a class="book-link" href="${R.notes}${esc(b.note)}/">${T.readMyNotes}</a>` : ''}
+      ${b.finished ? `<p class="muted small">${T.finished} ${timeTag(b.finished)}</p>` : ''}
     </div>`;
   return `<li class="book">${inner}</li>`;
 }
@@ -345,80 +387,80 @@ async function buildBooks(books, render, previews) {
   const toRead = books.filter((b) => b.status === 'to-read');
   const byYear = new Map();
   for (const b of read) {
-    const y = b.finished ? String(b.finished).slice(0, 4) : 'Undated';
+    const y = b.finished ? String(b.finished).slice(0, 4) : T.undated;
     if (!byYear.has(y)) byYear.set(y, []);
     byYear.get(y).push(b);
   }
   const shelf = (list) => `<ul class="shelf">${list.map((b) => bookCard(b, render)).join('')}</ul>`;
   const body = `<section class="page-head">
-  <h1>Books</h1>
-  <p class="dek">${esc(config.booksIntro || 'What I’m reading, what I’ve read, and the pile waiting for me.')}</p>
-  <p class="stat-line"><strong>${read.length}</strong> read · <strong>${reading.length}</strong> on the nightstand · <strong>${toRead.length}</strong> in the anti-library</p>
+  <h1>${T.booksTitle}</h1>
+  <p class="dek">${esc(C('booksIntro', T.booksIntro))}</p>
+  <p class="stat-line">${T.booksStat(read.length, reading.length, toRead.length)}</p>
 </section>
-${reading.length ? `<section class="book-section"><h2>Currently reading</h2>${shelf(reading)}</section>` : ''}
+${reading.length ? `<section class="book-section"><h2>${T.readingNow}</h2>${shelf(reading)}</section>` : ''}
 ${[...byYear].map(([y, list]) => `<section class="book-section"><h2>${esc(y)} <span class="count">${list.length}</span></h2>${shelf(list)}</section>`).join('')}
-${toRead.length ? `<section class="book-section"><h2>Anti-library <span class="count">${toRead.length}</span></h2><p class="muted">Books I want to read, someday.</p>${shelf(toRead)}</section>` : ''}`;
-  await write('books/index.html', layout({ title: 'Books', active: '/books/', body }));
-  previews['/books/'] = { kind: 'Section', title: 'Books', text: `${read.length} books read, ${reading.length} in progress.` };
+${toRead.length ? `<section class="book-section"><h2>${T.antiLibrary} <span class="count">${toRead.length}</span></h2><p class="muted">${T.antiLibraryBlurb}</p>${shelf(toRead)}</section>` : ''}`;
+  await writePage(R.books, layout({ title: T.booksTitle, active: 'books', body, url: R.books, alt: ROUTES[other()].books }));
+  previews[R.books] = { kind: T.kind.section, title: T.booksTitle, text: T.booksPreview(read.length, reading.length) };
 }
 
 // ---------- CV ----------
-const CV_SECTIONS = [
-  ['education', 'Education'],
-  ['work', 'Work'],
-  ['volunteer', 'Volunteer work'],
-  ['projects', 'Projects'],
-];
+const CV_SECTIONS = ['education', 'work', 'volunteer', 'projects'];
 
-async function buildCV(render, previews) {
-  const cv = await readJSON(p('data', 'cv.json'), null);
+async function buildCV(cv, render, previews) {
   if (!cv) return;
   const inline = (s) => render(String(s)).replace(/^<p>|<\/p>\s*$/g, '');
-  const short = (d) => { if (!d) return ''; const [y, m] = String(d).split('-').map(Number); return m ? `${MONTHS[m - 1].slice(0, 3)} ${y}` : String(y); };
-  const when = (e) => (e.when ? esc(e.when) : e.from || e.to ? `${esc(short(e.from))}${e.from && e.to === e.from ? '' : ` – ${e.to ? esc(short(e.to)) : 'present'}`}` : '');
-  // Tags: the order comes from "tags" in cv.json, then any others in the order they first appear.
-  const slug = (t) => String(t).toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/\+/g, 'plus').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-  const tagNames = new Map();
-  for (const t of cv.tags || []) tagNames.set(slug(t), t);
-  const used = new Map();
-  for (const [key] of CV_SECTIONS) for (const e of cv[key] || []) for (const t of e.tags || []) { const k = slug(t); if (!tagNames.has(k)) tagNames.set(k, t); used.set(k, (used.get(k) || 0) + 1); }
-  const tagList = [...tagNames].filter(([k]) => used.has(k));
-  const tagBtn = (t, cls = 'cv-tag') => `<button type="button" class="${cls}" data-tag="${slug(t)}">${esc(tagNames.get(slug(t)) || t)}</button>`;
+  // Wraps text in lang="…" when it's shown in the other language
+  const tx = (v, fn = esc) => { const s = L(v); const l = langOf(v); return l === lang ? fn(s) : `<span lang="${l}">${fn(s)}</span>`; };
+  const when = (e) => (e.when ? esc(L(e.when)) : e.from || e.to ? `${esc(fmtShort(e.from))}${e.from && e.to === e.from ? '' : ` – ${e.to ? esc(fmtShort(e.to)) : T.presentCv}`}` : '');
 
-  const entry = (e) => `<li class="cv-entry"${e.tags?.length ? ` data-tags="${e.tags.map(slug).join(' ')}"` : ''}>
+  // Tags: "tags" at the top of cv.json gives each tag an id and a name per language, and sets the order of the buttons.
+  const tagDefs = new Map();
+  for (const t of cv.tags || []) {
+    const def = typeof t === 'string' ? { id: slugify(t), name: t } : { id: t.id || slugify(L(t, 'en')), name: t.name || { is: t.is, en: t.en } };
+    tagDefs.set(def.id, def);
+  }
+  const tagId = (t) => { const s = slugify(L(t, 'en')); return tagDefs.has(String(t)) ? String(t) : [...tagDefs.values()].find((d) => slugify(L(d.name, 'en')) === s || slugify(L(d.name, 'is')) === s)?.id || s; };
+  const tagName = (id) => L(tagDefs.get(id)?.name) || id;
+  const used = new Map();
+  for (const key of CV_SECTIONS) for (const e of cv[key] || []) for (const t of e.tags || []) { const id = tagId(t); if (!tagDefs.has(id)) tagDefs.set(id, { id, name: t }); used.set(id, (used.get(id) || 0) + 1); }
+  const tagList = [...tagDefs.keys()].filter((id) => used.has(id));
+
+  const entry = (e) => `<li class="cv-entry"${e.tags?.length ? ` data-tags="${e.tags.map(tagId).join(' ')}"` : ''}>
   <div class="cv-when">${when(e)}</div>
   <div class="cv-what">
-    <h3>${e.link ? `<a href="${esc(e.link)}">${esc(e.title)}</a>` : esc(e.title)}</h3>
-    ${e.org || e.place ? `<p class="cv-org">${[e.org, e.place].filter(Boolean).map(esc).join(' · ')}</p>` : ''}
-    ${e.summary ? `<div class="cv-summary">${render(e.summary)}</div>` : ''}
-    ${e.highlights?.length ? `<ul class="cv-highlights">${e.highlights.map((h) => `<li>${inline(h)}</li>`).join('')}</ul>` : ''}
-    ${e.tags?.length ? `<p class="cv-tags">${e.tags.map((t) => tagBtn(t)).join('')}</p>` : ''}
+    <h3>${e.link ? `<a href="${esc(L(e.link))}">${tx(e.title)}</a>` : tx(e.title)}</h3>
+    ${e.org || e.place ? `<p class="cv-org">${[e.org, e.place].filter(Boolean).map((v) => tx(v)).join(' · ')}</p>` : ''}
+    ${e.summary ? `<div class="cv-summary">${tx(e.summary, render)}</div>` : ''}
+    ${L(e.highlights)?.length ? `<ul class="cv-highlights"${langOf(e.highlights) !== lang ? ` lang="${langOf(e.highlights)}"` : ''}>${L(e.highlights).map((h) => `<li>${inline(h)}</li>`).join('')}</ul>` : ''}
+    ${e.tags?.length ? `<p class="cv-tags">${e.tags.map(tagId).map((id) => `<button type="button" class="cv-tag" data-tag="${id}">${esc(tagName(id))}</button>`).join('')}</p>` : ''}
   </div>
 </li>`;
   // Newest first; anything still ongoing goes to the top.
   const sorted = (list) => [...list].sort((a, b) => (!a.to - !b.to) * -1 || String(b.to || '').localeCompare(String(a.to || '')) || String(b.from || '').localeCompare(String(a.from || '')));
-  const sections = CV_SECTIONS.filter(([key]) => cv[key]?.length);
-  const total = sections.reduce((n, [key]) => n + cv[key].length, 0);
+  const sections = CV_SECTIONS.filter((key) => cv[key]?.length);
+  const total = sections.reduce((n, key) => n + cv[key].length, 0);
 
-  const intro = cv.intro ? `<div class="dek">${render(cv.intro)}</div>` : '';
-  const filter = tagList.length ? `<div class="cv-filter" role="group" aria-label="Filter by tag">
-    <span class="cv-filter-label">Filter</span>
-    <button type="button" class="cv-chip" data-tag="" aria-pressed="true">All <span class="n">${total}</span></button>
-    ${tagList.map(([k, name]) => `<button type="button" class="cv-chip" data-tag="${k}" aria-pressed="false">${esc(name)} <span class="n">${used.get(k)}</span></button>`).join('')}
+  const intro = cv.intro ? `<div class="dek">${tx(cv.intro, render)}</div>` : '';
+  const filter = tagList.length ? `<div class="cv-filter" role="group" aria-label="${T.filterBy}">
+    <span class="cv-filter-label">${T.filter}</span>
+    <button type="button" class="cv-chip" data-tag="" aria-pressed="true">${T.allEntries} <span class="n">${total}</span></button>
+    ${tagList.map((id) => `<button type="button" class="cv-chip" data-tag="${id}" aria-pressed="false">${esc(tagName(id))} <span class="n">${used.get(id)}</span></button>`).join('')}
   </div>
-  <p class="cv-status muted" aria-live="polite"></p>` : '';
+  <p class="cv-status muted" aria-live="polite" data-one="${esc(T.showingOne)}" data-many="${esc(T.showingMany)}" data-of="${esc(T.ofTotal('{n}', '{t}'))}"></p>` : '';
+  const pdf = L(cv.pdf);
   const body = `<section class="page-head">
-  <h1>CV</h1>
+  <h1>${T.cvTitle}</h1>
   ${intro}
-  ${sections.length > 1 || cv.pdf ? `<nav class="cv-jump" aria-label="CV sections">${sections.map(([key, label]) => `<a href="#${key}" data-section="${key}">${label}</a>`).join('')}${cv.pdf ? `<a class="cv-pdf" href="${esc(cv.pdf)}">Download PDF</a>` : ''}</nav>` : ''}
+  ${sections.length > 1 || pdf ? `<nav class="cv-jump" aria-label="${T.cvSectionsNav}">${sections.map((key) => `<a href="#${key}" data-section="${key}">${T.cvSections[key]}</a>`).join('')}${pdf ? `<a class="cv-pdf" href="${esc(pdf)}">${T.downloadPdf}</a>` : ''}</nav>` : ''}
   ${filter}
 </section>
-${sections.map(([key, label]) => `<section class="cv-section" id="${key}">
-  <h2>${label} <span class="count" data-total="${cv[key].length}">${cv[key].length}</span></h2>
+${sections.map((key) => `<section class="cv-section" id="${key}">
+  <h2>${T.cvSections[key]} <span class="count" data-total="${cv[key].length}">${cv[key].length}</span></h2>
   <ol class="cv-list">${sorted(cv[key]).map(entry).join('')}</ol>
 </section>`).join('\n')}`;
-  await write('cv/index.html', layout({ title: 'CV', active: '/cv/', body, scripts: tagList.length ? '<script src="/assets/cv.js" defer></script>' : '' }));
-  previews['/cv/'] = { kind: 'Section', title: 'CV', text: sections.map(([key, label]) => `${cv[key].length} ${label.toLowerCase()}`).join(' · ') };
+  await writePage(R.cv, layout({ title: T.cvTitle, active: 'cv', body, url: R.cv, alt: ROUTES[other()].cv, scripts: tagList.length ? '<script src="/assets/cv.js" defer></script>' : '' }));
+  previews[R.cv] = { kind: T.kind.section, title: T.cvTitle, text: sections.map((key) => `${T.cvSections[key]}: ${cv[key].length}`).join(' · ') };
 }
 
 // ---------- photos ----------
@@ -454,29 +496,32 @@ async function processPhotos() {
 async function buildPhotos(photos, previews) {
   const byYear = new Map();
   for (const ph of photos) {
-    const y = ph.date ? String(ph.date).slice(0, 4) : 'Undated';
+    const y = ph.date ? String(ph.date).slice(0, 4) : T.undated;
     if (!byYear.has(y)) byYear.set(y, []);
     byYear.get(y).push(ph);
   }
   let i = 0;
-  const fig = (ph) => `<figure class="photo" data-index="${i++}">
-  <button class="photo-open" aria-label="Open photo${ph.caption ? `: ${esc(ph.caption)}` : ''}"><img src="${ph.thumb}" data-full="${ph.full}" alt="${esc(ph.alt || ph.caption || '')}" loading="lazy"${ph.width ? ` width="${ph.width}" height="${ph.height}"` : ''}></button>
-  ${ph.caption || ph.place ? `<figcaption>${esc(ph.caption || '')}${ph.place ? ` <span class="muted">· ${esc(ph.place)}</span>` : ''}</figcaption>` : ''}
+  const fig = (ph) => {
+    const caption = L(ph.caption), place = L(ph.place), alt = L(ph.alt) || caption || '';
+    return `<figure class="photo" data-index="${i++}">
+  <button class="photo-open" aria-label="${T.openPhoto}${caption ? `: ${esc(caption)}` : ''}"><img src="${ph.thumb}" data-full="${ph.full}" alt="${esc(alt)}" loading="lazy"${ph.width ? ` width="${ph.width}" height="${ph.height}"` : ''}></button>
+  ${caption || place ? `<figcaption>${esc(caption || '')}${place ? ` <span class="muted">· ${esc(place)}</span>` : ''}</figcaption>` : ''}
 </figure>`;
+  };
   const body = `<section class="page-head">
-  <h1>Photos</h1>
-  <p class="dek">${esc(config.photosIntro || 'Moments from my life, roughly in order.')}</p>
+  <h1>${T.photosTitle}</h1>
+  <p class="dek">${esc(C('photosIntro', T.photosIntro))}</p>
 </section>
 ${[...byYear].map(([y, list]) => `<section class="photo-year"><h2>${esc(y)}</h2><div class="photo-grid">${list.map(fig).join('')}</div></section>`).join('')}
-${photos.length ? '' : '<p class="muted">No photos yet — add some to content/photos/ and list them in data/photos.json.</p>'}
-<dialog class="lightbox" aria-label="Photo viewer">
-  <button class="lb-close" aria-label="Close">×</button>
-  <button class="lb-prev" aria-label="Previous photo">‹</button>
+${photos.length ? '' : `<p class="muted">${T.noPhotos}</p>`}
+<dialog class="lightbox" aria-label="${T.photoViewer}">
+  <button class="lb-close" aria-label="${T.close}">×</button>
+  <button class="lb-prev" aria-label="${T.prevPhoto}">‹</button>
   <figure><img alt=""><figcaption></figcaption></figure>
-  <button class="lb-next" aria-label="Next photo">›</button>
+  <button class="lb-next" aria-label="${T.nextPhoto}">›</button>
 </dialog>`;
-  await write('photos/index.html', layout({ title: 'Photos', active: '/photos/', body }));
-  previews['/photos/'] = { kind: 'Section', title: 'Photos', text: `${photos.length} photographs from my life.`, image: photos[0]?.thumb };
+  await writePage(R.photos, layout({ title: T.photosTitle, active: 'photos', body, url: R.photos, alt: ROUTES[other()].photos }));
+  previews[R.photos] = { kind: T.kind.section, title: T.photosTitle, text: T.photosPreview(photos.length), image: photos[0]?.thumb };
 }
 
 // ---------- travel ----------
@@ -495,14 +540,17 @@ const flag = (code) => {
 };
 const ymd = (d) => d.toISOString().slice(0, 10);
 const daysBetween = (a, b) => Math.max(0, Math.round((asDate(b) - asDate(a)) / DAY));
-// "5 months", "1 year, 2 months", "3 weeks"
-function spanText(days) {
-  const y = Math.floor(days / 365.25), m = Math.floor((days - y * 365.25) / 30.44);
-  if (y) return `${y} year${y > 1 ? 's' : ''}${m ? `, ${m} month${m > 1 ? 's' : ''}` : ''}`;
-  if (m) return `${m} month${m > 1 ? 's' : ''}`;
-  const w = Math.round(days / 7);
-  return w ? `${w} week${w > 1 ? 's' : ''}` : `${days} day${days === 1 ? '' : 's'}`;
+
+// Country names: "country" in travel.json is the English name (it's also how the map finds the shape).
+// Other languages use a "name" given in the data, then the short-name list in i18n.mjs, then the name built into Node.
+const regionNames = Object.fromEntries(LANGS.map((l) => [l, (() => { try { return new Intl.DisplayNames([l], { type: 'region' }); } catch { return null; } })()]));
+function countryName(c) {
+  if (c.name) return L(c.name);
+  if (lang === 'en' || !c.code) return c.country;
+  const code = String(c.code).toUpperCase();
+  return COUNTRY_NAMES[lang]?.[code] || (/^[A-Z]{2}$/.test(code) && regionNames[lang]?.of(code)) || c.country;
 }
+const regionName = (r) => REGIONS[lang]?.[r] || r;
 
 function barChartYears(rows) {
   if (!rows.length) return '';
@@ -512,29 +560,30 @@ function barChartYears(rows) {
   const bars = rows.map((r, i) => {
     const h = ((H - m.t - m.b) * r.value) / max;
     const x = m.l + i * bw + bw * 0.15, y = H - m.b - h;
-    return `<g><title>${r.label}: ${r.value} nights abroad</title>
+    return `<g><title>${r.label}: ${r.value} ${T.nights(r.value)}</title>
 <rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${(bw * 0.7).toFixed(1)}" height="${Math.max(h, r.value ? 2 : 0).toFixed(1)}" rx="3" class="bar"/>
 ${r.value ? `<text x="${(x + bw * 0.35).toFixed(1)}" y="${(y - 6).toFixed(1)}" class="bar-value">${r.value}</text>` : ''}
 <text x="${(x + bw * 0.35).toFixed(1)}" y="${H - 8}" class="axis-label">${rows.length > 14 ? `’${String(r.label).slice(2)}` : r.label}</text></g>`;
   });
-  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Nights abroad per year">
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(T.nightsByYear)}">
 <line x1="${m.l}" x2="${W - m.r}" y1="${H - m.b}" y2="${H - m.b}" class="baseline"/>${bars.join('')}</svg>`;
 }
 
-function hBarChart(rows, unit = 'nights') {
+function hBarChart(rows) {
   if (!rows.length) return '';
   const rowH = 30, labelW = 190, W = 720, H = rows.length * rowH + 8;
   const max = Math.max(...rows.map((r) => r.value), 1);
   const bars = rows.map((r, i) => {
     const w = ((W - labelW - 60) * r.value) / max, y = i * rowH + 4;
-    return `<g><title>${esc(r.label)}: ${r.value} ${unit}</title>
+    return `<g><title>${esc(r.label)}: ${r.value} ${T.nights(r.value)}</title>
 <text x="${labelW - 10}" y="${y + 18}" class="row-label">${esc(r.label)}</text>
 <rect x="${labelW}" y="${y + 4}" width="${Math.max(w, 2).toFixed(1)}" height="${rowH - 10}" rx="3" class="bar"/>
 <text x="${(labelW + w + 6).toFixed(1)}" y="${y + 18}" class="bar-value start">${r.value}</text></g>`;
   });
-  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Nights by country">${bars.join('')}</svg>`;
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(T.mostNights)}">${bars.join('')}</svg>`;
 }
 
+// Everything here is language-neutral; names are translated when the page is built.
 async function loadTravel() {
   const travel = await readJSON(p('data', 'travel.json'), { stays: [], flights: [] });
   const airports = await readJSON(p('data', 'airports.json'), {});
@@ -545,8 +594,8 @@ async function loadTravel() {
   // Countries with first visit, total nights, visits
   const countries = new Map();
   for (const s of stays) {
-    const c = countries.get(s.country) || { name: s.country, code: s.code, first: s.arrive, nights: 0, visits: 0, places: new Set() };
-    c.nights += s.nights; c.visits += 1; if (s.place) String(s.place).split(',').map((x) => x.trim()).filter(Boolean).forEach((x) => c.places.add(x));
+    const c = countries.get(s.country) || { country: s.country, code: s.code, first: s.arrive, nights: 0, visits: 0, places: [] };
+    c.nights += s.nights; c.visits += 1; if (s.place) c.places.push(s.place);
     if (!c.code && s.code) c.code = s.code;
     countries.set(s.country, c);
   }
@@ -597,7 +646,7 @@ async function loadTravel() {
 
   const livedMap = new Map();
   for (const l of lived) {
-    const c = livedMap.get(l.country) || { name: l.country, code: l.code, periods: [], days: 0 };
+    const c = livedMap.get(l.country) || { country: l.country, code: l.code, name: l.name, periods: [], days: 0 };
     if (!c.code && l.code) c.code = l.code;
     c.periods.push(l);
     c.days += daysBetween(l.from, l.to);
@@ -609,19 +658,19 @@ async function loadTravel() {
   for (const v of travel.visited || []) {
     const e = typeof v === 'string' ? { country: v } : v;
     if (!e.country || visitedMap.has(e.country)) continue;
-    visitedMap.set(e.country, { name: e.country, code: e.code, region: e.region || 'Elsewhere' });
+    visitedMap.set(e.country, { country: e.country, code: e.code, name: e.name, region: e.region || 'Elsewhere' });
   }
-  for (const c of countries.values()) if (!visitedMap.has(c.name)) visitedMap.set(c.name, { name: c.name, code: c.code, region: 'Elsewhere' });
+  for (const c of countries.values()) if (!visitedMap.has(c.country)) visitedMap.set(c.country, { country: c.country, code: c.code, region: 'Elsewhere' });
   for (const v of visitedMap.values()) {
-    const c = countries.get(v.name);
+    const c = countries.get(v.country);
     if (c) Object.assign(v, { nights: c.nights, visits: c.visits, first: c.first, places: c.places });
     if (!v.code && c?.code) v.code = c.code;
   }
-  const visitedOnly = [...visitedMap.values()].filter((v) => v.name !== home && !livedMap.has(v.name));
+  const visitedOnly = [...visitedMap.values()].filter((v) => v.country !== home && !livedMap.has(v.country));
   const allPlaces = new Set([...(home ? [home] : []), ...livedMap.keys(), ...visitedMap.keys()]);
 
   return {
-    travel, home, stays, countries, yearRows, flights, airportList, routes, km: Math.round(km),
+    travel, home, homeCode: travel.homeCode || '', stays, countries, yearRows, flights, airportList, routes, km: Math.round(km),
     today, homePeriods, homeDays, lived: livedMap, visited: visitedOnly, allPlaces,
   };
 }
@@ -629,29 +678,33 @@ async function loadTravel() {
 async function buildTravel(t, render, previews) {
   const totalNights = t.stays.reduce((s, x) => s + x.nights, 0);
   const longest = [...t.stays].sort((a, b) => b.nights - a.nights)[0];
-  const topCountries = [...t.countries.values()].sort((a, b) => b.nights - a.nights).slice(0, 12).map((c) => ({ label: `${flag(c.code)} ${c.name}`, value: c.nights }));
+  const cname = (c) => countryName({ country: c.country, code: c.code, name: c.name });
+  const topCountries = [...t.countries.values()].sort((a, b) => b.nights - a.nights).slice(0, 12).map((c) => ({ label: `${flag(c.code)} ${cname(c)}`, value: c.nights }));
+  const places = (list) => [...new Set((list || []).flatMap((x) => String(L(x)).split(',')).map((x) => x.trim()).filter(Boolean))];
 
   const trips = new Map();
   for (const s of t.stays) {
-    const k = s.trip || `${s.country} ${String(s.arrive).slice(0, 4)}`;
+    const k = L(s.trip) || `${cname(s)} ${String(s.arrive).slice(0, 4)}`;
     if (!trips.has(k)) trips.set(k, []);
     trips.get(k).push(s);
   }
   const tripList = [...trips].map(([name, stays]) => ({ name, stays, start: stays[0].arrive, end: stays.at(-1).depart, nights: stays.reduce((a, s) => a + s.nights, 0) })).sort((a, b) => String(b.start).localeCompare(String(a.start)));
 
-  const homeCode = t.travel.homeCode || '';
+  const homeName = t.home ? countryName({ country: t.home, code: t.homeCode, name: t.travel.homeName }) : '';
   const livedList = [...t.lived.values()].sort((a, b) => a.periods[0].from.localeCompare(b.periods[0].from));
   const yearSpan = (periods) => [...new Set(periods.map((p) => `${p.from.slice(0, 4)}${p.to && p.to.slice(0, 4) !== p.from.slice(0, 4) ? `–${p.to.slice(2, 4)}` : ''}`))].join(', ');
-  const range = (p) => `${fmtDate(p.from)} – ${p.to ? fmtDate(p.to) : 'present'}`;
+  const range = (p) => `${fmtDate(p.from)} – ${p.to ? fmtDate(p.to) : T.present}`;
 
   // Visited, grouped by region in the order they first appear
   const regions = new Map();
   for (const v of t.visited) { if (!regions.has(v.region)) regions.set(v.region, []); regions.get(v.region).push(v); }
 
   const mapData = {
-    home: t.home ? { name: t.home, flag: flag(homeCode) } : null,
-    lived: livedList.map((c) => ({ name: c.name, flag: flag(c.code), years: yearSpan(c.periods) })),
-    visited: t.visited.map((c) => ({ name: c.name, nights: c.nights || 0, flag: flag(c.code) })),
+    lang,
+    t: T.map,
+    home: t.home ? { name: t.home, label: homeName, flag: flag(t.homeCode) } : null,
+    lived: livedList.map((c) => ({ name: c.country, label: cname(c), flag: flag(c.code), years: yearSpan(c.periods) })),
+    visited: t.visited.map((c) => ({ name: c.country, label: cname(c), nights: c.nights || 0, flag: flag(c.code) })),
     airports: t.airportList.map(({ code, name, city, lat, lon, uses }) => ({ code, name, city, lat, lon, uses })),
     routes: [...t.routes].map(([k, count]) => { const [a, b] = k.split('-'); return { a, b, count }; }),
     aliases: t.travel.mapNames || {},
@@ -659,71 +712,87 @@ async function buildTravel(t, render, previews) {
 
   const homeYears = Math.floor(t.homeDays / 365.25);
   const homeBlock = t.home ? `<section class="travel-section">
-  <h2>Home</h2>
+  <h2>${T.home}</h2>
   <div class="place-card home">
-    <div class="place-head"><span class="flag">${flag(homeCode)}</span><div><strong>${esc(t.home)}</strong><small class="muted">${t.travel.born ? `Born ${esc(fmtDate(t.travel.born))} · ` : ''}${homeYears ? `${homeYears} years here` : ''}</small></div></div>
-    ${t.homePeriods.length ? `<ol class="periods">${t.homePeriods.map((p) => `<li><span>${range(p)}</span><span class="muted">${p.to ? spanText(daysBetween(p.from, p.to)) : p.from > t.today ? 'from then on' : `${spanText(daysBetween(p.from, t.today))} so far`}</span></li>`).join('')}</ol>` : ''}
+    <div class="place-head"><span class="flag">${flag(t.homeCode)}</span><div><strong>${esc(homeName)}</strong><small class="muted">${t.travel.born ? `${esc(T.born(fmtDate(t.travel.born)))} · ` : ''}${homeYears ? esc(T.yearsHere(homeYears)) : ''}</small></div></div>
+    ${t.homePeriods.length ? `<ol class="periods">${t.homePeriods.map((p) => `<li><span>${range(p)}</span><span class="muted">${p.to ? spanText(daysBetween(p.from, p.to)) : p.from > t.today ? T.fromThenOn : T.soFar(spanText(daysBetween(p.from, t.today)))}</span></li>`).join('')}</ol>` : ''}
   </div>
 </section>` : '';
 
   const livedBlock = livedList.length ? `<section class="travel-section">
-  <h2>Lived <span class="count">${livedList.length}</span></h2>
+  <h2>${T.lived} <span class="count">${livedList.length}</span></h2>
   <div class="place-grid">${livedList.map((c) => `<div class="place-card lived">
-    <div class="place-head"><span class="flag">${flag(c.code)}</span><div><strong>${esc(c.name)}</strong><small class="muted">${spanText(c.days)} in all</small></div></div>
+    <div class="place-head"><span class="flag">${flag(c.code)}</span><div><strong>${esc(cname(c))}</strong><small class="muted">${esc(T.inAll(spanText(c.days)))}</small></div></div>
     <ol class="periods">${c.periods.map((p) => `<li><span>${range(p)}</span><span class="muted">${spanText(daysBetween(p.from, p.to))}</span></li>`).join('')}</ol>
   </div>`).join('')}</div>
 </section>` : '';
 
   const visitedBlock = t.visited.length ? `<section class="travel-section">
-  <h2>Visited <span class="count">${t.visited.length}</span></h2>
-  ${[...regions].map(([region, list]) => `<h3 class="region">${esc(region)} <span class="count">${list.length}</span></h3>
-  <ul class="country-list">${list.map((c) => `<li><span class="flag">${flag(c.code)}</span><span class="c-name">${esc(c.name)}${c.places?.size ? `<small class="muted">${esc([...c.places].join(', '))}</small>` : ''}</span><span class="c-meta">${c.nights ? `${c.nights} nights · first ${timeTag(String(c.first).slice(0, 7))}` : ''}</span></li>`).join('')}</ul>`).join('')}
+  <h2>${T.visited} <span class="count">${t.visited.length}</span></h2>
+  ${[...regions].map(([region, list]) => `<h3 class="region">${esc(regionName(region))} <span class="count">${list.length}</span></h3>
+  <ul class="country-list">${[...list].sort((a, b) => cname(a).localeCompare(cname(b), lang)).map((c) => { const pl = places(c.places); return `<li><span class="flag">${flag(c.code)}</span><span class="c-name">${esc(cname(c))}${pl.length ? `<small class="muted">${esc(pl.join(', '))}</small>` : ''}</span><span class="c-meta">${c.nights ? T.firstVisit(c.nights, timeTag(String(c.first).slice(0, 7))) : ''}</span></li>`; }).join('')}</ul>`).join('')}
 </section>` : '';
 
-  const intro = t.travel.intro ? render(t.travel.intro) : `<p class="dek">${esc(config.travelIntro || 'Where I’ve been, and how long I stayed.')}</p>`;
+  const introSrc = L(t.travel.intro) || C('travelIntro') || T.travelIntro;
   const stat = (n, label) => `<div><strong>${n}</strong><span>${label}</span></div>`;
   const body = `<section class="page-head">
-  <h1>Travel</h1>
-  ${intro}
+  <h1>${T.travelTitle}</h1>
+  <div class="dek">${render(introSrc)}</div>
 </section>
 <section class="stats">
-  ${stat(t.allPlaces.size, 'countries')}
-  ${stat(t.visited.length, 'visited')}
-  ${stat(livedList.length, 'lived in')}
-  ${totalNights ? stat(totalNights.toLocaleString('en'), 'nights abroad') : ''}
-  ${t.airportList.length ? stat(t.airportList.length, 'airports') : ''}
-  ${t.flights.length ? stat(t.flights.length, 'flights') : ''}
-  ${t.km ? stat(t.km.toLocaleString('en'), `km flown${t.km > 40075 ? ` · ${(t.km / 40075).toFixed(1)}× round the Earth` : ''}`) : ''}
+  ${stat(t.allPlaces.size, T.countries)}
+  ${stat(t.visited.length, T.visitedStat)}
+  ${stat(livedList.length, T.livedStat)}
+  ${totalNights ? stat(num(totalNights), T.nightsAbroad) : ''}
+  ${t.airportList.length ? stat(t.airportList.length, T.airportsStat) : ''}
+  ${t.flights.length ? stat(t.flights.length, T.flightsStat) : ''}
+  ${t.km ? stat(num(t.km), `${T.kmFlown}${t.km > 40075 ? ` · ${T.roundEarth((t.km / 40075).toLocaleString(lang, { maximumFractionDigits: 1 }))}` : ''}`) : ''}
 </section>
 <section class="map-wrap">
-  <div id="travel-map" class="travel-map" aria-label="World map of home, countries lived in and countries visited"><p class="muted map-loading">Loading map…</p></div>
-  <div class="map-legend">${t.home ? `<span><i class="swatch home"></i>Home</span>` : ''}${livedList.length ? `<span><i class="swatch lived"></i>Lived</span>` : ''}<span><i class="swatch visited"></i>Visited</span>${t.airportList.length ? `<span><i class="swatch airport"></i>Airport</span><span><i class="swatch route"></i>Flight route</span>` : ''}</div>
+  <div id="travel-map" class="travel-map" aria-label="${esc(T.mapLabel)}"><p class="muted map-loading">${T.loadingMap}</p></div>
+  <div class="map-legend">${t.home ? `<span><i class="swatch home"></i>${T.home}</span>` : ''}${livedList.length ? `<span><i class="swatch lived"></i>${T.lived}</span>` : ''}<span><i class="swatch visited"></i>${T.visited}</span>${t.airportList.length ? `<span><i class="swatch airport"></i>${T.airport}</span><span><i class="swatch route"></i>${T.route}</span>` : ''}</div>
   <div class="map-tip" hidden></div>
 </section>
 ${homeBlock}
 ${livedBlock}
 ${visitedBlock}
 ${totalNights ? `<section class="travel-section">
-  <h2>Nights abroad, by year</h2>
+  <h2>${T.nightsByYear}</h2>
   ${barChartYears(t.yearRows)}
 </section>
 <section class="travel-section">
-  <h2>Where I’ve spent the most nights</h2>
+  <h2>${T.mostNights}</h2>
   ${hBarChart(topCountries)}
-  ${longest ? `<p class="muted">Longest single stay: ${longest.nights} nights in ${esc(longest.place ? `${longest.place}, ` : '')}${esc(longest.country)}, from ${timeTag(longest.arrive)}.</p>` : ''}
+  ${longest ? `<p class="muted">${T.longestStay(longest.nights, esc(L(longest.place) ? `${L(longest.place)}, ${cname(longest)}` : cname(longest)), timeTag(longest.arrive))}</p>` : ''}
 </section>` : ''}
 ${tripList.length ? `<section class="travel-section">
-  <h2>Trips</h2>
-  <ol class="trip-list">${tripList.map((tr) => `<li><div class="trip-head"><strong>${esc(tr.name)}</strong><span class="muted">${timeTag(tr.start)} · ${tr.nights} nights</span></div><p>${tr.stays.map((s) => `${flag(s.code)} ${esc(s.place ? `${s.place}, ${s.country}` : s.country)} <span class="muted">(${s.nights})</span>`).join(' → ')}</p></li>`).join('')}</ol>
+  <h2>${T.trips}</h2>
+  <ol class="trip-list">${tripList.map((tr) => `<li><div class="trip-head"><strong>${esc(tr.name)}</strong><span class="muted">${timeTag(tr.start)} · ${tr.nights} ${T.nights(tr.nights)}</span></div><p>${tr.stays.map((s) => `${flag(s.code)} ${esc(L(s.place) ? `${L(s.place)}, ${cname(s)}` : cname(s))} <span class="muted">(${s.nights})</span>`).join(' → ')}</p></li>`).join('')}</ol>
 </section>` : ''}
 ${t.airportList.length ? `<section class="travel-section">
-  <h2>Airports <span class="count">${t.airportList.length}</span></h2>
+  <h2>${T.airports} <span class="count">${t.airportList.length}</span></h2>
   <ul class="airport-list">${[...t.airportList].sort((a, b) => b.uses - a.uses).map((a) => `<li><span class="iata">${esc(a.code)}</span><span>${esc(a.name)}<small class="muted">${esc(a.city || '')}</small></span><span class="muted">${a.uses}×</span></li>`).join('')}</ul>
 </section>` : ''}
 <script type="application/json" id="travel-data">${JSON.stringify(mapData).replace(/</g, '\\u003c')}</script>`;
-  await write('travel/index.html', layout({ title: 'Travel', active: '/travel/', body, scripts: '<script src="/assets/travel-map.js" defer></script>' }));
-  previews['/travel/'] = { kind: 'Section', title: 'Travel', text: `${t.allPlaces.size} countries: ${t.visited.length} visited, ${livedList.length} lived in${t.home ? `, home in ${t.home}` : ''}.` };
+  await writePage(R.travel, layout({ title: T.travelTitle, active: 'travel', body, url: R.travel, alt: ROUTES[other()].travel, scripts: '<script src="/assets/travel-map.js" defer></script>' }));
+  previews[R.travel] = { kind: T.kind.section, title: T.travelTitle, text: T.travelPreview(t.allPlaces.size, t.visited.length, livedList.length) };
   return { countries: t.allPlaces.size, visited: t.visited.length, lived: livedList.length, nights: totalNights, airports: t.airportList.length };
+}
+
+// ---------- redirects from the old, English-only addresses ----------
+const redirectPage = (to) => `<!doctype html>
+<html lang="${DEFAULT_LANG}"><head><meta charset="utf-8"><title>…</title>
+<link rel="canonical" href="${to}"><meta name="robots" content="noindex"><meta http-equiv="refresh" content="0; url=${to}">
+<script>location.replace(${JSON.stringify(to)} + location.search + location.hash)</script>
+</head><body><a href="${to}">${to}</a></body></html>`;
+
+async function buildRedirects(noteSlugs) {
+  const R0 = ROUTES[DEFAULT_LANG];
+  for (const [key, from] of Object.entries(OLD_ROUTES)) {
+    if (key === 'notes') continue;
+    if (from !== R0[key]) await writePage(from, redirectPage(R0[key]));
+  }
+  if (OLD_ROUTES.notes !== R0.notes) for (const slug of noteSlugs) await writePage(`${OLD_ROUTES.notes}${slug}/`, redirectPage(`${R0.notes}${slug}/`));
 }
 
 // ---------- main ----------
@@ -737,28 +806,39 @@ async function main() {
   const atlas = p('node_modules', 'world-atlas', 'countries-110m.json');
   if (fss.existsSync(atlas)) { await fs.mkdir(path.join(OUT, 'data'), { recursive: true }); await fs.copyFile(atlas, path.join(OUT, 'data', 'countries-110m.json')); }
 
-  const notes = await loadNotes();
-  const notesBySlug = new Map(notes.map((n) => [n.slug, n]));
-  const backlinks = new Map(notes.map((n) => [n.slug, new Set()]));
-  const render = makeRenderer(notesBySlug, backlinks);
-  const previews = {};
-
+  const noteVersions = await loadNotes();
+  const pageVersions = await loadPages();
   const books = await readJSON(p('data', 'books.json'), []);
+  const cv = await readJSON(p('data', 'cv.json'), null);
   const photos = await processPhotos();
   const travel = await loadTravel();
+  const previews = {};
 
-  await buildNotes(notes, render, backlinks, previews);
-  await buildGarden(notes, previews);
-  await buildBooks(books, render, previews);
-  await buildPhotos(photos, previews);
-  const travelSummary = await buildTravel(travel, render, previews);
-  await buildCV(render, previews);
-  await buildPages(render, previews);
-  await buildHome(notes, books, photos, travelSummary, previews);
+  for (const l of LANGS) {
+    setLang(l);
+    const notes = [...noteVersions.values()].map((v) => pick(v, l)).sort((a, b) => String(b.tended).localeCompare(String(a.tended)));
+    const notesBySlug = new Map(notes.map((n) => [n.slug, n]));
+    const backlinks = new Map(notes.map((n) => [n.slug, new Set()]));
+    const render = makeRenderer(notesBySlug, backlinks);
 
+    await buildNotes(notes, render, backlinks, previews);
+    await buildGarden(notes, previews);
+    await buildBooks(books, render, previews);
+    await buildPhotos(photos, previews);
+    const travelSummary = await buildTravel(travel, render, previews);
+    await buildCV(cv, render, previews);
+    await buildPages(pageVersions, render, previews);
+    await buildHome(notes, books, photos, travelSummary, previews);
+  }
+
+  setLang(DEFAULT_LANG);
+  await buildRedirects([...noteVersions.keys()]);
   await write('previews.json', JSON.stringify(previews));
-  await write('404.html', layout({ title: 'Not found', body: '<section class="page-head"><h1>Nothing growing here</h1><p class="dek">This page hasn’t been planted. Try <a href="/garden/">the garden</a>.</p></section>' }));
-  console.log(`Built ${notes.length} notes, ${books.length} books, ${photos.length} photos, ${travel.allPlaces.size} countries in ${Date.now() - started}ms${sharp ? '' : ' (sharp not installed: photos copied without resizing)'}`);
+  const nf = LANGS.map((l) => { setLang(l); return `<section class="page-head" lang="${l}"><h1>${T.notFoundTitle}</h1><p class="dek">${T.notFoundBody(R.garden)}</p></section>`; }).join('');
+  setLang(DEFAULT_LANG);
+  await write('404.html', layout({ title: T.notFoundTitle, body: nf }));
+  const count = (m, l) => [...m.values()].filter((v) => v[l]).length;
+  console.log(`Built ${noteVersions.size} notes (${LANGS.map((l) => `${count(noteVersions, l)} ${l}`).join(', ')}), ${books.length} books, ${photos.length} photos, ${travel.allPlaces.size} countries, in ${LANGS.join(' + ')}, in ${Date.now() - started}ms${sharp ? '' : ' (sharp not installed: photos copied without resizing)'}`);
 }
 
 await main();

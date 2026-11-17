@@ -1,114 +1,157 @@
 {
-  "intro": "Where I’ve studied, worked and volunteered.",
+  "intro": {
+    "is": "Nám, störf og sjálfboðaliðastörf.",
+    "en": "Where I’ve studied, worked and volunteered."
+  },
   "pdf": "",
-  "tags": ["Scouting", "Youth work", "LGBTQ+", "Writing", "Other"],
+
+  "tags": [
+    { "id": "scouting", "is": "Skátastarf", "en": "Scouting" },
+    { "id": "youth-work", "is": "Æskulýðsstarf", "en": "Youth work" },
+    { "id": "lgbtq", "is": "Hinsegin málefni", "en": "LGBTQ+" },
+    { "id": "writing", "is": "Skrif", "en": "Writing" },
+    { "id": "other", "is": "Annað", "en": "Other" }
+  ],
+
   "education": [
     {
-      "title": "M.Ed. in Leisure Studies and Social Education",
-      "org": "University of Iceland (Háskóli Íslands)",
-      "place": "Reykjavík, Iceland",
+      "title": { "is": "M.Ed. gráða í tómstunda- og félagsmálafræði", "en": "M.Ed. in Leisure Studies and Social Education" },
+      "org": { "is": "Háskóli Íslands", "en": "University of Iceland (Háskóli Íslands)" },
+      "place": { "is": "Reykjavík", "en": "Reykjavík, Iceland" },
       "from": "2021",
       "to": "2024",
-      "highlights": [
-        "Master’s thesis on the inclusion of marginalised groups in scouting"
-      ],
-      "tags": ["Scouting", "Youth work", "Writing"]
+      "highlights": {
+        "is": ["Meistararitgerð fjallaði um inngildingu jaðarsettra hópa í skátastarfi"],
+        "en": ["Master’s thesis on the inclusion of marginalised groups in scouting"]
+      },
+      "tags": ["scouting", "youth-work", "writing"]
     },
     {
-      "title": "M.A. in Gender Studies",
+      "title": { "is": "M.A. gráða í kynjafræði", "en": "M.A. in Gender Studies" },
       "org": "Linköping University",
-      "place": "Linköping, Sweden",
+      "place": { "is": "Linköping, Svíþjóð", "en": "Linköping, Sweden" },
       "from": "2022",
       "to": "2023",
-      "highlights": [
-        "Master’s thesis on negative discourse about trans people in Icelandic media, awarded the highest grade"
-      ],
-      "tags": ["LGBTQ+", "Writing"]
+      "highlights": {
+        "is": ["Meistararitgerð hlaut hæstu einkunn og fjallaði um neikvæða orðræðu um trans fólk í íslenskum fjölmiðlum"],
+        "en": ["Master’s thesis on negative discourse about trans people in Icelandic media, awarded the highest grade"]
+      },
+      "tags": ["lgbtq", "writing"]
     },
     {
-      "title": "B.A. in Philosophy, Politics and Economics",
-      "org": "Bifröst University (Háskólinn á Bifröst)",
-      "place": "Bifröst, Iceland",
+      "title": { "is": "B.A. gráða í heimspeki, hagfræði og stjórnmálafræði", "en": "B.A. in Philosophy, Politics and Economics" },
+      "org": { "is": "Háskólinn á Bifröst", "en": "Bifröst University (Háskólinn á Bifröst)" },
+      "place": { "is": "Bifröst", "en": "Bifröst, Iceland" },
       "from": "2018",
       "to": "2021",
-      "highlights": [
-        "Award at graduation for the highest grade average in the Faculty of Social Sciences",
-        "B.A. thesis on Iceland’s Gender Autonomy Act, awarded first-class honours"
-      ],
-      "tags": ["LGBTQ+", "Writing"]
+      "highlights": {
+        "is": [
+          "Viðurkenning við útskrift fyrir hæstu meðaleinkunn Félagsvísindadeildar",
+          "B.A. ritgerð hlaut ágætiseinkunn og fjallaði um lög um kynrænt sjálfræði"
+        ],
+        "en": [
+          "Award at graduation for the highest grade average in the Faculty of Social Sciences",
+          "B.A. thesis on Iceland’s Gender Autonomy Act, awarded first-class honours"
+        ]
+      },
+      "tags": ["lgbtq", "writing"]
     }
   ],
+
   "work": [
     {
-      "title": "Specialist in Queer Affairs",
-      "org": "Reykjavík City Human Rights Office (Mannréttindaskrifstofa Reykjavíkurborgar)",
+      "title": { "is": "Sérfræðingur í málefnum hinsegin fólks", "en": "Specialist in Queer Affairs" },
+      "org": { "is": "Mannréttindaskrifstofa Reykjavíkurborgar", "en": "Reykjavík City Human Rights Office (Mannréttindaskrifstofa Reykjavíkurborgar)" },
       "from": "2023",
-      "highlights": [
-        "Education and advice on queer issues for City of Reykjavík staff",
-        "Running the City of Reykjavík’s Rainbow Certification programme (Regnbogavottun)",
-        "Representing the City of Reykjavík in international collaboration and projects on queer issues"
-      ],
-      "tags": ["LGBTQ+"]
+      "highlights": {
+        "is": [
+          "Fræðsla og ráðgjöf um málefni hinsegin fólks fyrir starfsfólk Reykjavíkur",
+          "Umsjón með verkefninu Regnbogavottun Reykjavíkurborgar",
+          "Fulltrúi Reykjavíkurborgar í alþjóðlegu samstarfi og verkefnum um hinsegin málefni"
+        ],
+        "en": [
+          "Education and advice on queer issues for City of Reykjavík staff",
+          "Running the City of Reykjavík’s Rainbow Certification programme (Regnbogavottun)",
+          "Representing the City of Reykjavík in international collaboration and projects on queer issues"
+        ]
+      },
+      "tags": ["lgbtq"]
     },
     {
-      "title": "Staff member",
-      "org": "Reykjadalur — summer camp for disabled children and young people",
+      "title": { "is": "Starfsmaður", "en": "Staff member" },
+      "org": { "is": "Reykjadalur — sumarbúðir fyrir fötluð börn og ungmenni", "en": "Reykjadalur — summer camp for disabled children and young people" },
       "from": "2023",
       "to": "2025",
-      "highlights": [
-        "Camp staff in summer 2023",
-        "Relief staff in summer 2025"
-      ],
-      "tags": ["Youth work"]
+      "highlights": {
+        "is": ["Starfsmaður í Reykjadal sumarið 2023", "Afleysingar sumarið 2025"],
+        "en": ["Camp staff in summer 2023", "Relief staff in summer 2025"]
+      },
+      "tags": ["youth-work"]
     },
     {
-      "title": "Inclusion Project Manager",
-      "org": "Icelandic Scouting Association (Bandalag íslenskra skáta)",
+      "title": { "is": "Verkefnastýra inngildingar", "en": "Inclusion Project Manager" },
+      "org": { "is": "Bandalag íslenskra skáta", "en": "Icelandic Scouting Association (Bandalag íslenskra skáta)" },
       "from": "2023",
       "to": "2023",
-      "highlights": [
-        "Managed the project *Scouting for all children* (Skátastarf fyrir öll börn)",
-        "Partnership with the Guluhlíð after-school centre on scouting for disabled children",
-        "Organised family days at Úlfljótsvatn for families from Ukraine"
-      ],
-      "tags": ["Scouting", "Youth work"]
+      "highlights": {
+        "is": [
+          "Umsjón með verkefninu *Skátastarf fyrir öll börn*",
+          "Samstarf við Frístundaheimilið Guluhlíð vegna skátastarfs fyrir fötluð börn",
+          "Umsjón fjölskyldudaga fyrir fjölskyldur frá Úkraínu á Úlfljótsvatni"
+        ],
+        "en": [
+          "Managed the project *Scouting for all children* (Skátastarf fyrir öll börn)",
+          "Partnership with the Guluhlíð after-school centre on scouting for disabled children",
+          "Organised family days at Úlfljótsvatn for families from Ukraine"
+        ]
+      },
+      "tags": ["scouting", "youth-work"]
     },
     {
-      "title": "Assistant Director",
-      "org": "Sigyn youth centre (Félagsmiðstöðin Sigyn)",
-      "place": "Grafarvogur, Reykjavík",
+      "title": { "is": "Aðstoðarforstöðukona", "en": "Assistant Director" },
+      "org": { "is": "Félagsmiðstöðin Sigyn", "en": "Sigyn youth centre (Félagsmiðstöðin Sigyn)" },
+      "place": { "is": "Grafarvogur, Reykjavík", "en": "Grafarvogur, Reykjavík" },
       "from": "2021",
       "to": "2022",
-      "highlights": [
-        "Day-to-day running of a youth centre serving 300 children and teenagers in Grafarvogur",
-        "Planning and running the programme, bookkeeping, purchasing and coordinating group activities",
-        "Led the Grafarvogur Youth Council (Ungmennaráð Grafarvogs), 2020–2022"
-      ],
-      "tags": ["Youth work"]
+      "highlights": {
+        "is": [
+          "Umsjón með Ungmennaráði Grafarvogs árin 2020–2022",
+          "Daglegur rekstur félagsmiðstöðvar sem þjónustar 300 börn og unglinga í Grafarvogi",
+          "Verkefni voru m.a. skipulag og framkvæmd á dagskrá, bókhald, innkaup og utanumhald hópastarfs"
+        ],
+        "en": [
+          "Led the Grafarvogur Youth Council (Ungmennaráð Grafarvogs), 2020–2022",
+          "Day-to-day running of a youth centre serving 300 children and teenagers in Grafarvogur",
+          "Planning and running the programme, bookkeeping, purchasing and coordinating group activities"
+        ]
+      },
+      "tags": ["youth-work"]
     }
   ],
+
   "volunteer": [
     {
-      "title": "Scout leader for children aged 7–16",
-      "org": "Kópar Scout Group (Skátafélagið Kópar)",
+      "title": { "is": "Skátaforingi í skátastarfi 7–16 ára barna", "en": "Scout leader for children aged 7–16" },
+      "org": { "is": "Skátafélagið Kópar", "en": "Kópar Scout Group (Skátafélagið Kópar)" },
       "from": "2018",
-      "tags": ["Scouting", "Youth work"]
+      "tags": ["scouting", "youth-work"]
     },
     {
-      "title": "Secretary",
+      "title": { "is": "Ritari", "en": "Secretary" },
       "org": "Rainbow Cities Network — a global network of local governments for LGBTI equality",
       "from": "2023",
       "to": "2024",
-      "tags": ["LGBTQ+"]
+      "tags": ["lgbtq"]
     },
     {
-      "title": "Board member",
-      "org": "Samtökin ’78 — the National Queer Organisation of Iceland",
+      "title": { "is": "Stjórnarmeðlimur", "en": "Board member" },
+      "org": { "is": "Samtökin ’78 — Félag hinsegin fólks á Íslandi", "en": "Samtökin ’78 — the National Queer Organisation of Iceland" },
       "from": "2017",
       "to": "2024",
       "when": "2017–2019, 2021–2024",
-      "tags": ["LGBTQ+"]
+      "tags": ["lgbtq"]
     }
   ],
+
   "projects": []
 }

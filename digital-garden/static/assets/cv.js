@@ -19,14 +19,18 @@
       const n = s.querySelectorAll('.cv-entry:not([hidden])').length;
       s.hidden = n === 0;
       const count = s.querySelector('.count');
-      if (count) count.textContent = tag ? `${n} of ${count.dataset.total}` : count.dataset.total;
+      if (count) count.textContent = tag ? (status?.dataset.of || '{n} of {t}').replace('{n}', n).replace('{t}', count.dataset.total) : count.dataset.total;
       const jump = document.querySelector(`.cv-jump [data-section="${s.id}"]`);
       if (jump) jump.hidden = n === 0;
     }
     for (const c of chips) c.setAttribute('aria-pressed', String(c.dataset.tag === tag));
     for (const b of document.querySelectorAll('.cv-tag')) b.classList.toggle('active', !!tag && b.dataset.tag === tag);
     const name = chips.find((c) => c.dataset.tag === tag)?.firstChild.textContent.trim();
-    if (status) status.textContent = tag ? `Showing ${shown} ${shown === 1 ? 'entry' : 'entries'} tagged “${name}”.` : '';
+    if (status) {
+      const isl = document.documentElement.lang === 'is';
+      const single = isl ? shown % 10 === 1 && shown % 100 !== 11 : shown === 1;
+      status.textContent = tag ? (single ? status.dataset.one : status.dataset.many).replace('{n}', shown).replace('{tag}', name) : '';
+    }
     if (push) {
       const url = new URL(location.href);
       if (tag) url.searchParams.set('tag', tag); else url.searchParams.delete('tag');

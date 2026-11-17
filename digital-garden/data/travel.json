@@ -2,7 +2,10 @@
   "home": "Iceland",
   "homeCode": "IS",
   "born": "2000-05-04",
-  "intro": "The places I’ve called home, the places I’ve lived, and everywhere I’ve visited along the way.",
+  "intro": {
+    "is": "Hvar ég á heima, hvar ég hef búið og hvert ég hef farið.",
+    "en": "The places I’ve called home, the places I’ve lived, and everywhere I’ve visited along the way."
+  },
 
   "lived": [
     { "country": "Denmark", "code": "DK", "from": "2018-01-11", "to": "2018-06-27" },

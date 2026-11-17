@@ -55,9 +55,38 @@ npm run dev     # → http://localhost:4321, rebuilds when you save
 
 ---
 
+## Two languages: Icelandic and English
+
+The site is built twice. The Icelandic version is the default and lives at the root (`/`, `/gardurinn/`, `/ferilskra/`…). The English version lives under `/en/` (`/en/`, `/en/garden/`, `/en/cv/`…). Every page has a button in the header that switches to the same page in the other language.
+
+| Icelandic | English |
+|---|---|
+| `/` | `/en/` |
+| `/gardurinn/` | `/en/garden/` |
+| `/glosur/<note>/` | `/en/notes/<note>/` |
+| `/baekur/` | `/en/books/` |
+| `/myndir/` | `/en/photos/` |
+| `/ferdalog/` | `/en/travel/` |
+| `/ferilskra/` | `/en/cv/` |
+| `/um/` | `/en/about/` |
+
+The old addresses (`/cv/`, `/travel/`, `/notes/…` and so on) forward to the Icelandic pages, so links you've already shared keep working.
+
+**Notes and pages.** The language is part of the file name: `my-idea.is.md` and `my-idea.en.md` are the same note in two languages. A file with no language suffix counts as Icelandic. If a note only exists in one language, the other version of the site still shows it, with a small "Only available in Icelandic" / "Aðeins til á ensku" label, so you can translate whenever you have time.
+
+**Data files.** Any text in `site.config.json` and the files in `data/` can be either plain text (the same in both languages) or one value per language:
+
+```jsonc
+"title": { "is": "Verkefnastýra inngildingar", "en": "Inclusion Project Manager" }
+```
+
+If only one language is filled in, that text is used in both.
+
+**Interface text.** Menus, headings, dates and other words the site uses itself are in `i18n.mjs`, along with the page addresses above.
+
 ## Writing notes
 
-Each note is a Markdown file in `content/notes/`. The file name becomes the URL, so `my-idea.md` is served at `/notes/my-idea/`.
+Each note is a Markdown file in `content/notes/`. The file name becomes the URL, so `my-idea.is.md` is served at `/glosur/my-idea/` and `my-idea.en.md` at `/en/notes/my-idea/`.
 
 ```markdown
 ---
@@ -80,7 +109,7 @@ Text with a sidenote.[^1] Link to another note with [[Note title]] or
 - **Sidenotes:** write `[^anything]` in the text and `[^anything]: text` on its own line anywhere in the note.
 - **Wiki links:** `[[...]]` matches a note's title or file name. A link to a note that doesn't exist yet shows as a faded "not planted yet" link.
 - **Images:** put them in `static/images/` and write `![alt text](/images/photo.jpg)`.
-- **Pages:** files in `content/pages/` (like `about.md`) become top-level pages.
+- **Pages:** files in `content/pages/` become top-level pages. `about.is.md` and `about.en.md` are served at `/um/` and `/en/about/`. Other pages use their file name, or `path:` in the front matter to choose the address in each language.
 
 The note **A note on sidenotes and dates** shows every feature working, so it's handy to copy when you start a new note.
 
@@ -122,11 +151,22 @@ The CV page has four sections: `education`, `work`, `volunteer` and `projects`. 
   "summary": "A sentence or two. *Markdown* works.",
   "highlights": ["Bullet point", "Another one"],  // optional
   "link": "https://…",             // optional, links the title
-  "tags": ["Scouting", "Youth work"] // optional, used for filtering
+  "tags": ["scouting", "youth-work"] // optional, used for filtering
 }
 ```
 
-**Tags.** Every entry can have `tags`. Visitors can filter the whole CV by clicking a tag, either in the filter bar at the top or on an entry. Set the order of the filter buttons with a top-level `"tags": ["Scouting", "Youth work", "LGBTQ+", "Writing", "Other"]`. Tags that no entry uses are left out, and any new tag you put on an entry is added automatically. A filtered view has its own link to share, e.g. `/cv/?tag=scouting`.
+**Tags.** Every entry can have `tags`. Visitors can filter the whole CV by clicking a tag, either in the filter bar at the top or on an entry. The top-level `tags` list gives each tag an id and a name in each language, and sets the order of the filter buttons:
+
+```jsonc
+"tags": [
+  { "id": "scouting", "is": "Skátastarf", "en": "Scouting" },
+  { "id": "youth-work", "is": "Æskulýðsstarf", "en": "Youth work" }
+]
+```
+
+Entries refer to tags by id. Tags that no entry uses are left out. A filtered view has its own link to share, e.g. `/ferilskra/?tag=scouting` or `/en/cv/?tag=scouting`.
+
+Every text field (`title`, `org`, `place`, `summary`, `highlights`, `when`) can be `{ "is": …, "en": … }`.
 
 Entries are sorted newest first, with ongoing ones at the top. A section with no entries is hidden. To offer a downloadable version, put the file in `static/` (e.g. `static/cv.pdf`) and set `"pdf": "/cv.pdf"`. The page also prints cleanly.
 
@@ -143,6 +183,7 @@ Countries are sorted into three groups: **home**, **lived** and **visited**.
 - Time at home is worked out automatically: every date from `born` onwards that isn't inside a `lived` period.
 - A country you've lived in is shown under Lived, even if it's also in `visited`.
 - Visited countries are grouped by `region`. England, Scotland and Wales use the codes `GB-ENG`, `GB-SCT` and `GB-WLS` for their flags.
+- Write `country` in English (that's how the map finds it). The Icelandic name is filled in automatically from the country `code`. To use a different name, add `"name": { "is": "…", "en": "…" }` to the entry.
 - Places too small for the world map (Singapore, Hong Kong, Liechtenstein…) appear as dots.
 
 Each **stay** is one visit to one country. Nights are counted from `arrive` to `depart`.
@@ -171,7 +212,9 @@ If you forget an airport, the build prints a warning telling you which one is mi
 
 | File | What it does |
 |---|---|
-| `build.mjs` | Reads `content/` and `data/`, then writes the finished site to `dist/` |
+| `build.mjs` | Reads `content/` and `data/`, then writes the finished site to `dist/`, once per language |
+| `i18n.mjs` | The site's own words in Icelandic and English, and the page addresses for each language |
+| `static/assets/cv.js` | The tag filter on the CV page |
 | `static/assets/styles.css` | All the styling: colours, fonts and layout. The design tokens are at the top. |
 | `static/assets/garden.js` | Adds the age badges, hover previews, filters and lightbox |
 | `static/assets/travel-map.js` | Draws the world map with no external libraries |
